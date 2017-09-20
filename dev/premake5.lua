@@ -26,11 +26,13 @@ project "vkr"
 	
 	warnings "Extra" 
 	
-	files { "../src/**.cpp", "../src/**.h", "../src/**.hpp"}
+	files { "../src/**.cpp", "../inc/**.h", "../inc/**.hpp"}
 
 	includedirs
 	{
 		"../external/vulkan/inc/",
+		"../external/vulkanhpp/",
+		"../inc/",
 	}
 	
 	libdirs
