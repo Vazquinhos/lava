@@ -1,10 +1,12 @@
 #include "Renderer.h"
 #include "Debug.h"
+#include "Window.h"
 
 namespace lava
 {
-    Renderer::Renderer(HWND _hwnd, const std::vector< std::string >& _requiredExtensions, const std::vector< std::string >& _requiredLayers)
-        : mhwnd(_hwnd)
+    Renderer::Renderer(Window* _window, const std::vector< std::string >& _requiredExtensions, const std::vector< std::string >& _requiredLayers)
+        : mWindow(_window)
+        , mDebug(nullptr)
     {
         // The extensions asked by the user must be checked with the available extensions in this platform
         uint32_t extensionCount = 0;
@@ -111,10 +113,49 @@ namespace lava
         CreateInstance(extensions, layers);
         CreateDeviceAndQueue();
         CreateSurface();
+        CreateSwapChain();
+        CreateFramebuffers();
+        CreateSemaphores();
+        CreateDebug();
+        CreateCommandPoolAndCommandBuffers();
+        CreateFences();
     }
 
     Renderer::~Renderer()
     {
+        // Wait for all rendering to finish
+        vkWaitForFences(mDevice, sQueueSlotCount, mFrameFences, VK_TRUE, UINT64_MAX);
+
+        // Destroy semaphores
+        vkDestroySemaphore(mDevice, mRenderingCompleteSemaphore, nullptr);
+        vkDestroySemaphore(mDevice, mImageAcquiredSemaphore, nullptr);
+
+        // Destroy the fences
+        for (int i = 0; i < sQueueSlotCount; ++i)
+            vkDestroyFence(mDevice, mFrameFences[i], nullptr);
+
+        // Destroy the command pool
+        vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+
+        // Destroy the rendering pass
+        vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
+
+        // Destroy the frame buffer and the image views
+        for (int i = 0; i < sQueueSlotCount; ++i)
+        {
+            vkDestroyFramebuffer(mDevice, mFramebuffer[i], nullptr);
+            vkDestroyImageView(mDevice, mImageViews[i], nullptr);
+        }
+
+        // Destroy the swap chain and the surface
+        vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+
+#ifdef _DEBUG
+        safe_delete(mDebug);
+#endif
+
+        // Destroy the instance and the device
         vkDestroyDevice(mDevice, nullptr);
         vkDestroyInstance(mInstance, nullptr);
     }
@@ -145,6 +186,8 @@ namespace lava
 
         VkResult r = vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance);
         assert(r == VK_SUCCESS);
+
+        debugLog("instance ready");
     }
 
     void Renderer::CreateDeviceAndQueue()
@@ -220,13 +263,15 @@ namespace lava
 
         vkGetDeviceQueue(mDevice, graphicsQueueIndex, 0, &mQueue);
         assert(mQueue);
+
+        debugLog("Device and queue ready");
     }
 
     void Renderer::CreateSurface()
     {
         VkWin32SurfaceCreateInfoKHR win32surfaceCreateInfo = {};
         win32surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        win32surfaceCreateInfo.hwnd = mhwnd;
+        win32surfaceCreateInfo.hwnd = mWindow->GetHWND();
         win32surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
         vkCreateWin32SurfaceKHR(mInstance, &win32surfaceCreateInfo, nullptr, &mSurface);
         assert(mSurface);
@@ -234,5 +279,198 @@ namespace lava
         VkBool32 presentSupported;
         vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, 0, mSurface, &presentSupported);
         assert(presentSupported);
+        debugLog("Surface ready");
+    }
+
+    void Renderer::CreateRenderPass(VkFormat _swapchainFormat)
+    {
+        VkAttachmentDescription attachmentDescription = {};
+        attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+        attachmentDescription.format = _swapchainFormat;
+        attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        VkAttachmentReference attachmentReference = {};
+        attachmentReference.attachment = 0;
+        attachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpassDescription = {};
+        subpassDescription.inputAttachmentCount = 0;
+        subpassDescription.pColorAttachments = &attachmentReference;
+        subpassDescription.colorAttachmentCount = 1;
+        subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+        VkRenderPassCreateInfo renderPassCreateInfo = {};
+        renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassCreateInfo.attachmentCount = 1;
+        renderPassCreateInfo.subpassCount = 1;
+        renderPassCreateInfo.pSubpasses = &subpassDescription;
+        renderPassCreateInfo.pAttachments = &attachmentDescription;
+
+        vkCreateRenderPass(mDevice, &renderPassCreateInfo, nullptr, &mRenderPass);
+        assert(mRenderPass);
+    }
+
+    void Renderer::CreateFramebuffers()
+    {
+        for (int i = 0; i < sQueueSlotCount; ++i)
+        {
+            VkFramebufferCreateInfo framebufferCreateInfo = {};
+            framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferCreateInfo.attachmentCount = 1;
+            framebufferCreateInfo.pAttachments = &mImageViews[i];
+            framebufferCreateInfo.height = mWindow->GetHeight();
+            framebufferCreateInfo.width = mWindow->GetWidth();
+            framebufferCreateInfo.layers = 1;
+            framebufferCreateInfo.renderPass = mRenderPass;
+
+            vkCreateFramebuffer(mDevice, &framebufferCreateInfo, nullptr, &mFramebuffer[i]);
+        }
+    }
+
+    void Renderer::CreateSwapchainImageViews(VkFormat format)
+    {
+        uint32_t swapchainImageCount = 0;
+        vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImageCount, nullptr);
+        assert(static_cast<int> (swapchainImageCount) == sQueueSlotCount);
+
+        vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImageCount, mImages);
+
+        for (int i = 0; i < sQueueSlotCount; ++i)
+        {
+            VkImageViewCreateInfo imageViewCreateInfo = {};
+            imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageViewCreateInfo.image = mImages[i];
+            imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            imageViewCreateInfo.format = format;
+            imageViewCreateInfo.subresourceRange.levelCount = 1;
+            imageViewCreateInfo.subresourceRange.layerCount = 1;
+            imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+            vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &mImageViews[i]);
+        }
+    }
+
+    void Renderer::CreateSemaphores()
+    {
+        VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+        semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mImageAcquiredSemaphore);
+        vkCreateSemaphore(mDevice, &semaphoreCreateInfo,nullptr, &mRenderingCompleteSemaphore);
+    }
+
+    void Renderer::CreateSwapChain()
+    {
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &surfaceCapabilities);
+
+        uint32_t presentModeCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &presentModeCount, nullptr);
+
+        std::vector<VkPresentModeKHR> presentModes{ presentModeCount };
+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &presentModeCount, presentModes.data());
+
+        VkExtent2D swapChainSize = {};
+        swapChainSize = surfaceCapabilities.currentExtent;
+        assert(static_cast<int> (swapChainSize.width) == mWindow->GetWidth());
+        assert(static_cast<int> (swapChainSize.height) == mWindow->GetHeight());
+
+        uint32_t swapChainImageCount = sQueueSlotCount;
+        assert(swapChainImageCount >= surfaceCapabilities.minImageCount);
+
+        // 0 indicates unlimited number of images
+        if (surfaceCapabilities.maxImageCount != 0)
+            assert(swapChainImageCount < surfaceCapabilities.maxImageCount);
+
+        VkSurfaceTransformFlagBitsKHR surfaceTransformFlags = (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ?
+            VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : surfaceCapabilities.currentTransform;
+
+        uint32_t surfaceFormatCount = 0;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &surfaceFormatCount, nullptr);
+
+        std::vector<VkSurfaceFormatKHR> surfaceFormats{ surfaceFormatCount };
+        vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &surfaceFormatCount, surfaceFormats.data());
+
+        VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
+        swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        swapchainCreateInfo.surface = mSurface;
+        swapchainCreateInfo.minImageCount = swapChainImageCount;
+        swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        swapchainCreateInfo.preTransform = surfaceTransformFlags;
+        swapchainCreateInfo.pQueueFamilyIndices = nullptr;
+        swapchainCreateInfo.queueFamilyIndexCount = 0;
+        swapchainCreateInfo.clipped = VK_TRUE;
+        swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+        swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        swapchainCreateInfo.imageExtent = swapChainSize;
+        swapchainCreateInfo.imageArrayLayers = 1;
+        swapchainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        swapchainCreateInfo.imageColorSpace = surfaceFormats.front().colorSpace;
+
+        if (surfaceFormatCount == 1 && surfaceFormats.front().format == VK_FORMAT_UNDEFINED)
+        {
+            swapchainCreateInfo.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+            warningLog("swapchainCreateInfo.imageFormat = VK_FORMAT_R8G8B8A8_UNORM because undefined format");
+        }
+        else
+        {
+            swapchainCreateInfo.imageFormat = surfaceFormats.front().format;
+        }
+
+        vkCreateSwapchainKHR(mDevice, &swapchainCreateInfo, nullptr, &mSwapChain);
+        assert(mSwapChain);
+
+        CreateRenderPass(swapchainCreateInfo.imageFormat);
+        CreateSwapchainImageViews(swapchainCreateInfo.imageFormat);
+
+        debugLog("Swap chain ready");
+    }
+
+    void Renderer::CreateDebug()
+    {
+#ifdef _DEBUG
+        mDebug = new Debug(mInstance);
+        debugLog("Debug interface ready");
+#endif
+    }
+
+    void Renderer::CreateCommandPoolAndCommandBuffers()
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+        commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        commandPoolCreateInfo.queueFamilyIndex = mQueueFamilyIndex;
+        commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+        vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool);
+
+        VkCommandBufferAllocateInfo commandBufferAllocateInfo = {};
+        commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        commandBufferAllocateInfo.commandBufferCount = sQueueSlotCount + 1;
+        commandBufferAllocateInfo.commandPool = mCommandPool;
+        commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+        VkCommandBuffer commandBuffers[sQueueSlotCount + 1];
+        vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, commandBuffers);
+        for (int i = 0; i < sQueueSlotCount; ++i)
+            mCommandBuffers[i] = commandBuffers[i];
+
+        mSetupCommandBuffer = commandBuffers[sQueueSlotCount];
+    }
+
+    void Renderer::CreateFences()
+    {
+        for (int i = 0; i < sQueueSlotCount; ++i)
+        {
+            VkFenceCreateInfo fenceCreateInfo = {};
+            fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            // We need this so we can wait for them on the first try
+            fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+            vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrameFences[i]);
+        }
     }
 }

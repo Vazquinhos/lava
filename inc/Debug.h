@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer.h"
+#include "lava.h"
 
 namespace lava
 {
@@ -30,4 +30,17 @@ namespace lava
     void warningLog(const std::string&);
     void errorLog(const std::string&);
     void fatalLog(const std::string&);
+
+    class Debug
+    {
+    public:
+        Debug(VkInstance _instance);
+        virtual ~Debug();
+    protected:
+        VkDebugReportCallbackEXT mCallback;
+        VkInstance mInstance;
+        PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT = nullptr;
+        PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT = nullptr;
+        PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT = nullptr;
+    };
 }

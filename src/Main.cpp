@@ -17,7 +17,7 @@ int main()
             std::cout << lava::to_string(_severity) << " : " << _msg << std::endl;
         }
     );
-    lava::Renderer lavaRenderer( window.GetHWND(), extensions,layers);
+    lava::Renderer lavaRenderer( &window, extensions,layers);
     while (!window.IsClosed())
     {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
