@@ -14,7 +14,8 @@ int main()
     (
         [](lava::MessageSeverity _severity, const std::string& _msg)
         {
-            std::cout << lava::to_string(_severity) << " : " << _msg << std::endl;
+            std::string fullMsg = lava::to_string(_severity) + " : " + _msg + "\n";
+            OutputDebugStringA(fullMsg.c_str());
         }
     );
     lava::Renderer lavaRenderer( &window, extensions,layers);
@@ -26,6 +27,8 @@ int main()
             DispatchMessage(&msg);
             continue;
         }
+
+        lavaRenderer.Update();
     }
     return 0;
 }

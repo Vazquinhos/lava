@@ -115,10 +115,31 @@ namespace lava
         CreateSurface();
         CreateSwapChain();
         CreateFramebuffers();
-        CreateSemaphores();
         CreateDebug();
         CreateCommandPoolAndCommandBuffers();
         CreateFences();
+
+        vkResetFences(mDevice, 1, &mFrameFences[0]);
+        {
+            VkCommandBufferBeginInfo beginInfo = {};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+            vkBeginCommandBuffer(mSetupCommandBuffer, &beginInfo);
+
+            //InitializeImpl(setupCommandBuffer_);
+
+            vkEndCommandBuffer(mSetupCommandBuffer);
+
+            VkSubmitInfo submitInfo = {};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &mSetupCommandBuffer;
+            vkQueueSubmit(mQueue, 1, &submitInfo, mFrameFences[0]);
+        }
+
+        vkWaitForFences(mDevice, 1, &mFrameFences[0], VK_TRUE, UINT64_MAX);
+
+        CreateSemaphores();
     }
 
     Renderer::~Renderer()
@@ -160,9 +181,67 @@ namespace lava
         vkDestroyInstance(mInstance, nullptr);
     }
 
-    bool Renderer::Update()
+    void Renderer::Update()
     {
-        return false;
+      vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mImageAcquiredSemaphore, VK_NULL_HANDLE, &mCurrentBackBuffer);
+
+      vkWaitForFences(mDevice, 1, &mFrameFences[mCurrentBackBuffer], VK_TRUE, UINT64_MAX);
+      vkResetFences(mDevice, 1, &mFrameFences[mCurrentBackBuffer]);
+
+      VkCommandBufferBeginInfo beginInfo = {};
+      beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+      vkBeginCommandBuffer(mCommandBuffers[mCurrentBackBuffer], &beginInfo);
+
+      VkRenderPassBeginInfo renderPassBeginInfo = {};
+      renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      renderPassBeginInfo.framebuffer = mFramebuffer[mCurrentBackBuffer];
+      renderPassBeginInfo.renderArea.extent.width = mWindow->GetWidth();
+      renderPassBeginInfo.renderArea.extent.height = mWindow->GetHeight();
+      renderPassBeginInfo.renderPass = mRenderPass;
+
+      VkClearValue clearValue = {};
+
+      clearValue.color.float32[0] = 1.0f;
+      clearValue.color.float32[1] = 0.042f;
+      clearValue.color.float32[2] = 0.042f;
+      clearValue.color.float32[3] = 1.0f;
+
+      renderPassBeginInfo.pClearValues = &clearValue;
+      renderPassBeginInfo.clearValueCount = 1;
+
+      vkCmdBeginRenderPass(mCommandBuffers[mCurrentBackBuffer],
+        &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      //RenderImpl(commandBuffers_[currentBackBuffer_]);
+
+      vkCmdEndRenderPass(mCommandBuffers[mCurrentBackBuffer]);
+      vkEndCommandBuffer(mCommandBuffers[mCurrentBackBuffer]);
+
+      // Submit rendering work to the graphics queue
+      const VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      VkSubmitInfo submitInfo = {};
+      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submitInfo.waitSemaphoreCount = 1;
+      submitInfo.pWaitSemaphores = &mImageAcquiredSemaphore;
+      submitInfo.pWaitDstStageMask = &waitDstStageMask;
+      submitInfo.commandBufferCount = 1;
+      submitInfo.pCommandBuffers = &mCommandBuffers[mCurrentBackBuffer];
+      submitInfo.signalSemaphoreCount = 1;
+      submitInfo.pSignalSemaphores = &mRenderingCompleteSemaphore;
+      vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE);
+
+      // Submit present operation to present queue
+      VkPresentInfoKHR presentInfo = {};
+      presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+      presentInfo.waitSemaphoreCount = 1;
+      presentInfo.pWaitSemaphores = &mRenderingCompleteSemaphore;
+      presentInfo.swapchainCount = 1;
+      presentInfo.pSwapchains = &mSwapChain;
+      presentInfo.pImageIndices = &mCurrentBackBuffer;
+      vkQueuePresentKHR(mQueue, &presentInfo);
+
+      vkQueueSubmit(mQueue, 0, nullptr, mFrameFences[mCurrentBackBuffer]);
     }
 
     void Renderer::CreateInstance(const std::vector<const char*>& _requiredAvailableExtensions, const std::vector< const char* >& _requiredAvailableLayers)
@@ -198,7 +277,7 @@ namespace lava
         std::vector<VkPhysicalDevice> devices{ physicalDeviceCount };
         vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, devices.data());
 
-        int graphicsQueueIndex = -1;
+        mQueueFamilyIndex = -1;
         for (auto physicalDevice : devices)
         {
             uint32_t queueFamilyPropertyCount = 0;
@@ -212,18 +291,18 @@ namespace lava
                 if (queueFamilyProperties[iQueue].queueFlags & VK_QUEUE_GRAPHICS_BIT)
                 {
                     mPhysicalDevice = physicalDevice;
-                    graphicsQueueIndex = static_cast< uint32_t >( iQueue );
+                    mQueueFamilyIndex = static_cast< uint32_t >( iQueue );
                 }
             }
         }
 
         assert(mPhysicalDevice);
-        assert(graphicsQueueIndex > -1);
+        assert(mQueueFamilyIndex > -1);
 
         VkDeviceQueueCreateInfo deviceQueueCreateInfo = {};
         deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         deviceQueueCreateInfo.queueCount = 1;
-        deviceQueueCreateInfo.queueFamilyIndex = graphicsQueueIndex;
+        deviceQueueCreateInfo.queueFamilyIndex = mQueueFamilyIndex;
 
         static const float queuePriorities[] = { 1.0f };
         deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
@@ -261,7 +340,7 @@ namespace lava
         vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice);
         assert(mDevice);
 
-        vkGetDeviceQueue(mDevice, graphicsQueueIndex, 0, &mQueue);
+        vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
         assert(mQueue);
 
         debugLog("Device and queue ready");

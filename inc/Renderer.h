@@ -13,7 +13,7 @@ namespace lava
         Renderer(Window* _window, const std::vector< std::string >& _requiredExtensions, const std::vector< std::string >& _requiredLayers);
         virtual ~Renderer();
 
-        bool Update();
+        void Update();
     
     protected: 
         VkInstance       mInstance          = VK_NULL_HANDLE;
