@@ -3,6 +3,8 @@
 #include "Debug.h"
 #include <iostream>
 
+#include "io/Mesh.h"
+
 int main()
 {
     lava::Window window("window", 400, 300);
@@ -19,6 +21,8 @@ int main()
         }
     );
     lava::Renderer lavaRenderer( &window, extensions,layers);
+	lava::io::Mesh objMesh;
+	objMesh.Load("meshes/cube.obj");
     while (!window.IsClosed())
     {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))

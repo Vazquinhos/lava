@@ -32,6 +32,7 @@ project "vkr"
 	{
 		"../external/vulkan/inc/",
 		"../external/vulkanhpp/",
+		"../external/tinyobj/",
 		"../inc/",
 	}
 	
