@@ -2,29 +2,29 @@
 
 namespace
 {
-    LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  {
+    auto ptr = ::GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    auto window = reinterpret_cast<lava::Window*> (ptr);
+
+    switch (uMsg)
     {
-        auto ptr = ::GetWindowLongPtr(hwnd, GWLP_USERDATA);
-        auto window = reinterpret_cast<lava::Window*> (ptr);
-
-        switch (uMsg)
-        {
-        case WM_CLOSE:
-            window->Close();
-            return 0;
-        }
-
-        return ::DefWindowProcA(hwnd, uMsg, wParam, lParam);
+    case WM_CLOSE:
+      window->Close();
+      return 0;
     }
+
+    return ::DefWindowProcA(hwnd, uMsg, wParam, lParam);
+  }
 }   // namespace
 
 namespace lava
 {
-Window::Window(const std::string& _title, const int _width, const int _height)
-    : mWidth (_width)
-    , mHeight (_height)
-    , mTitle (_title)
-{
+  Window::Window(const std::string& _title, const int _width, const int _height)
+    : mWidth(_width)
+    , mHeight(_height)
+    , mTitle(_title)
+  {
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
 
     ::RECT rect;
@@ -48,22 +48,33 @@ Window::Window(const std::string& _title, const int _width, const int _height)
     ::RegisterClassA(&wc);
 
     // Create the main window.
-    mHwnd = ::CreateWindowA( _title.c_str() ,
-        _title.c_str(),
-        style, CW_USEDEFAULT, CW_USEDEFAULT,
-        rect.right - rect.left, rect.bottom - rect.top, (HWND)NULL,
-        (HMENU)NULL, NULL, (LPVOID)NULL);
+    mHwnd = ::CreateWindowA(_title.c_str(),
+      _title.c_str(),
+      style, CW_USEDEFAULT, CW_USEDEFAULT,
+      rect.right - rect.left, rect.bottom - rect.top, (HWND)NULL,
+      (HMENU)NULL, NULL, (LPVOID)NULL);
 
     ::SetWindowLongPtr(mHwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR> (this));
 
     // Show the window and paint its contents.
     ::ShowWindow(mHwnd, SW_SHOWDEFAULT);
     ::UpdateWindow(mHwnd);
-}
+  }
 
-Window::~Window()
-{
+  Window::~Window()
+  {
     ::UnregisterClassA(mTitle.c_str(), (HINSTANCE)::GetModuleHandle(NULL));
-}
+  }
 
+  void Window::Update()
+  {
+    MSG msg;
+    ZeroMemory(&msg, sizeof(msg));
+    ::UpdateWindow(mHwnd);
+    while (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+    {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+  }
 }

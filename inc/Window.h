@@ -35,10 +35,7 @@ namespace lava
             return mHeight;
         }
 
-        void Update()
-        {
-            ::UpdateWindow(mHwnd);
-        }
+        void Update();
 
     protected:
         HWND mHwnd = 0;

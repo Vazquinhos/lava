@@ -20,7 +20,7 @@ workspace "lava"
 	  rtti ("off")
       optimize "On"
 	
-project "vkr"
+project "lavaEngine"
 	--kind "WindowedApp"
 	kind "ConsoleApp"
 	

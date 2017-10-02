@@ -183,6 +183,7 @@ namespace lava
 
     void Renderer::Update()
     {
+      mWindow->Update();
       vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mImageAcquiredSemaphore, VK_NULL_HANDLE, &mCurrentBackBuffer);
 
       vkWaitForFences(mDevice, 1, &mFrameFences[mCurrentBackBuffer], VK_TRUE, UINT64_MAX);

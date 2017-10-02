@@ -7,6 +7,9 @@
 #include <memory>
 #include <functional>
 #include <string>
+#include <fstream>      // std::ifstream
+#include <ios>
+
 #include <Windows.h>
 
 namespace lava
