@@ -1,9 +1,9 @@
 /* Copyright (C) 2017 Alejandro Vazquez vazquinhos@gmail.com */
 #pragma once
 
-#include "vkr.hpp"
+#include "lava.h"
 
-namespace vkr
+namespace lava
 {
     class Blending
     {
@@ -27,8 +27,6 @@ namespace vkr
         }
 
     private:
-        VKR_DISABLE_COPY(Blending);
-
         VkPipelineColorBlendAttachmentState mPipelineColorBlendAttachmentState;
         VkPipelineColorBlendStateCreateInfo mPipelineColorBlendStateCreateInfo;
     };

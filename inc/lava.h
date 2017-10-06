@@ -12,14 +12,51 @@
 
 #include <Windows.h>
 
+#pragma warning( push )
+#pragma warning( disable : 4201)
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm\vec2.hpp>
+#include <glm\vec3.hpp>
+#include <glm\vec4.hpp>
+#include <glm\mat4x4.hpp>
+#pragma warning( pop ) 
+
 namespace lava
 {
     static const int sQueueSlotCount = 3;
-    
-    template<typename T>
-    void safe_delete(T*& a)
+    struct MemoryTypeInfo
     {
-        delete a;
-        a = nullptr;
+      bool deviceLocal = false;
+      bool hostVisible = false;
+      bool hostCoherent = false;
+      bool hostCached = false;
+      bool lazilyAllocated = false;
+
+      struct Heap
+      {
+        uint64_t size = 0;
+        bool deviceLocal = false;
+      };
+
+      Heap heap;
+      int index;
+    };
+
+    template <typename T>
+    T RoundToNextMultiple(const T a, const T multiple)
+    {
+      return ((a + multiple - 1) / multiple) * multiple;
     }
+
+    enum VertexFlag
+    {
+      Position = 0,
+      Normal,
+      Tangent,
+      Binormal,
+      Uv,
+    };
 }

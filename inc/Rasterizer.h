@@ -1,9 +1,9 @@
 /* Copyright (C) 2017 Alejandro Vazquez vazquinhos@gmail.com */
 #pragma once
 
-#include "vkr.hpp"
+#include "lava.h"
 
-namespace vkr
+namespace lava
 {
     class Rasterizer
     {
@@ -28,7 +28,6 @@ namespace vkr
         }
 
     private:
-        VKR_DISABLE_COPY(Rasterizer);
         vk::PipelineRasterizationStateCreateInfo mRasterizationInfo;
         VkPipelineRasterizationStateCreateInfo mPipelineRasterizationStateCreateInfo;
     };

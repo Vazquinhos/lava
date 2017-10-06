@@ -1,43 +1,42 @@
 /* Copyright (C) 2017 Alejandro Vazquez vazquinhos@gmail.com */
 #pragma once
 
-#include "vkr.hpp"
+#include "lava.h"
+#include "Shader.h"
 
-namespace vkr
+namespace lava
 {
-    class Techinique
+  class Technique
+  {
+  public:
+    Technique(const Shader& _vs, const Shader& _fs)
+      : mNumStages(2)
     {
-    public:
-        Techinique(const Shader& _vs, const Shader& _fs)
-            : mNumStages(2)
-        {
-            mvPipelineShaderStageCreateInfos.resize(2);
-            mvPipelineShaderStageCreateInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            mvPipelineShaderStageCreateInfos[0].module = _vs.GetVkShaderModule();
-            mvPipelineShaderStageCreateInfos[0].pName = "main";
-            mvPipelineShaderStageCreateInfos[0].stage = _vs.GetVkShaderStageFlagBits();
+      mvPipelineShaderStageCreateInfos.resize(2);
+      mvPipelineShaderStageCreateInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      mvPipelineShaderStageCreateInfos[0].module = _vs.GetVkShaderModule();
+      mvPipelineShaderStageCreateInfos[0].pName = "main";
+      mvPipelineShaderStageCreateInfos[0].stage = _vs.GetVkShaderStageFlagBits();
 
-            mvPipelineShaderStageCreateInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            mvPipelineShaderStageCreateInfos[1].module = _fs.GetVkShaderModule();
-            mvPipelineShaderStageCreateInfos[1].pName = "main";
-            mvPipelineShaderStageCreateInfos[1].stage = _fs.GetVkShaderStageFlagBits();
-        }
-        virtual ~Techinique() = default;
-        
-        const VkPipelineShaderStageCreateInfo* GetVkPipelineShaderStageCreateInfo() const
-        {
-            return mvPipelineShaderStageCreateInfos.data();
-        }
-        
-        uint32_t GetNumStages() const
-        {
-            return mNumStages;
-        }
+      mvPipelineShaderStageCreateInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      mvPipelineShaderStageCreateInfos[1].module = _fs.GetVkShaderModule();
+      mvPipelineShaderStageCreateInfos[1].pName = "main";
+      mvPipelineShaderStageCreateInfos[1].stage = _fs.GetVkShaderStageFlagBits();
+    }
+    virtual ~Technique() = default;
 
-    private:
-        VKR_DISABLE_COPY(Techinique);
+    const VkPipelineShaderStageCreateInfo* GetVkPipelineShaderStageCreateInfo() const
+    {
+      return mvPipelineShaderStageCreateInfos.data();
+    }
 
-        std::vector<VkPipelineShaderStageCreateInfo> mvPipelineShaderStageCreateInfos;
-        uint32_t mNumStages;
-    };
+    uint32_t GetNumStages() const
+    {
+      return mNumStages;
+    }
+
+  private:
+    std::vector<VkPipelineShaderStageCreateInfo> mvPipelineShaderStageCreateInfos;
+    uint32_t mNumStages;
+  };
 }

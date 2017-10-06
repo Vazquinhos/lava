@@ -10,10 +10,18 @@ namespace lava
     class Renderer
     {
     public:
-        Renderer(Window* _window, const std::vector< std::string >& _requiredExtensions, const std::vector< std::string >& _requiredLayers);
+        Renderer(Window* _window, const std::vector< std::string >& _requiredExtensions,
+                 const std::vector< std::string >& _requiredLayers, std::function<void(VkCommandBuffer)> _renderingFnc );
         virtual ~Renderer();
 
         void Update();
+
+        VkDevice GetDevice() const { return mDevice; }
+        VkPhysicalDevice GetPhysicalDevice() const { return mPhysicalDevice; }
+        VkRenderPass GetRenderPass() const { return mRenderPass; }
+        const uint32_t GetFrameBufferWidth() const;
+        const uint32_t GetFrameBufferHeight() const;
+        const std::vector<MemoryTypeInfo>& GetHeaps() const { return mHeaps; }
     
     protected: 
         VkInstance       mInstance          = VK_NULL_HANDLE;
@@ -41,6 +49,10 @@ namespace lava
         VkCommandBuffer mSetupCommandBuffer;
         uint32_t        mCurrentBackBuffer = 0;
 
+        std::vector<MemoryTypeInfo> mHeaps;
+
+        std::function<void(VkCommandBuffer)> mRenderingFnc = nullptr;
+
 #ifdef _DEBUG
         Debug*           mDebug             = nullptr;
 #endif
@@ -57,5 +69,6 @@ namespace lava
         void CreateSwapchainImageViews(VkFormat _swapchainFormat);
         void CreateFramebuffers();
         void CreateSemaphores();
+        void EnumerateHeaps();
     };
 }

@@ -32,6 +32,7 @@ project "lavaEngine"
 	{
 		"../external/vulkan/inc/",
 		"../external/vulkanhpp/",
+		"../external/glm/",
 		"../external/tinyobj/",
 		"../inc/",
 	}
