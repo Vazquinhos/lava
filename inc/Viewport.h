@@ -8,7 +8,7 @@ namespace lava
     class Viewport
     {
     public:
-        Viewport(VkOffset2D _offset2D, VkExtent2D _viewportSize, float _minDepth = 0.0f, float _maxDepth = 1.0f)
+		Viewport(VkOffset2D _offset2D = VkOffset2D({ 0,0 }), VkExtent2D _viewportSize = VkExtent2D({800, 600}), float _minDepth = 0.0f, float _maxDepth = 1.0f)
         {
             mViewport = {};
             mViewport.height = static_cast<float> (_viewportSize.height);

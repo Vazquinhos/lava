@@ -130,7 +130,7 @@ namespace lava
             vertexBuffer[v].bitangent = glm::normalize(glm::cross(vertexBuffer[v].normal, vertexBuffer[v].tangent));
           }
 
-          mGeometry[s] = std::make_shared < Geometry<Vertex>>(_renderer, vertexBuffer.data(), (uint32_t)vertexBuffer.size(), indexBuffer.data(), (uint32_t)indexBuffer.size());
+          //mGeometry[s] = std::make_shared < Geometry<Vertex>>(_renderer, vertexBuffer.data(), (uint32_t)vertexBuffer.size(), indexBuffer.data(), (uint32_t)indexBuffer.size());
         }
 
         return true;

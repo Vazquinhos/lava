@@ -6,34 +6,45 @@
 
 namespace lava
 {
-  template< class VertexType >
-  class Geometry
-  {
-  public:
-    Geometry(const Renderer& _renderer, VertexType* _vertexBuffer, const uint32_t _numVertices, uint32_t* _indexBuffer, const uint32_t _numIndices)
-      : mVertexBuffer(_renderer, _numVertices)
-      , mIndexBuffer(_renderer, _numIndices)
-    {
-      mVertexBuffer.Map();
-      mVertexBuffer.Copy(_vertexBuffer);
-      mVertexBuffer.Unmap();
+	template< class VertexType >
+	class Geometry
+	{
+	public:
+		Geometry() = default;
+		virtual ~Geometry() = default;
 
-      mIndexBuffer.Map();
-      mIndexBuffer.Copy(_indexBuffer);
-      mIndexBuffer.Unmap();
-    }
-    virtual ~Geometry() = default;
+		VkDevice device() const { return mRenderer->GetDevice(); }
+		const Renderer& renderer() const { return *mRenderer; }
+		Geometry& renderer(Renderer& _renderer)
+		{ 
+			mRenderer = &_renderer; 
+			mVertexBuffer.renderer(_renderer); 
+			mIndexBuffer.renderer(_renderer); 
+			return *this;
+		}
 
-    void DrawIndexed(VkCommandBuffer commandBuffer)
-    {
-      mVertexBuffer.Bind(commandBuffer);
-      mIndexBuffer.Bind(commandBuffer);
-      mIndexBuffer.Draw(commandBuffer);
-    }
+		Geometry& vertices(VertexType* _vertexBuffer, const uint32_t _numVertices)
+		{
+			mVertexBuffer.count(_numVertices).create().data(_vertexBuffer);
+			return *this;
+		}
 
-  private:
-    VertexBuffer<VertexType> mVertexBuffer;
-    IndexBuffer mIndexBuffer;
-  };
+		Geometry& indices(uint32_t* _indexBuffer, const uint32_t _numIndices)
+		{
+			mIndexBuffer.count(_numIndices).create().data(_indexBuffer);
+			return *this;
+		}
+
+		void DrawIndexed(VkCommandBuffer commandBuffer)
+		{
+			
+			mIndexBuffer.Draw(commandBuffer);
+		}
+
+	public:
+		Renderer*  mRenderer;
+		VertexBuffer<VertexType> mVertexBuffer;
+		Index32Buffer mIndexBuffer;
+	};
 
 }

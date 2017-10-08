@@ -51,12 +51,17 @@ namespace lava
       return ((a + multiple - 1) / multiple) * multiple;
     }
 
-    enum VertexFlag
-    {
-      Position = 0,
-      Normal,
-      Tangent,
-      Binormal,
-      Uv,
-    };
+	enum VertexFlags
+	{
+		ePosition = 0x00000001,
+		eNormal = 0x00000002,
+		eTangent = 0x00000004,
+		eBinormal = 0x00000008,
+		eUv = 0x00000010,
+	};
+
+	VULKAN_HPP_INLINE VertexFlags operator|(VertexFlags bit0, VertexFlags bit1)
+	{
+		return VertexFlags( static_cast<VertexFlags>( static_cast<uint32_t>(bit0) | static_cast<uint32_t>(bit1) ) );
+	}
 }

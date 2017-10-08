@@ -1,149 +1,132 @@
 #pragma once
 
 #include "lava.h"
+#include "Debug.h"
 #include "Renderer.h"
 
 namespace lava
 {
-  template< typename T >
-  class Buffer
-  {
-  public:
-    Buffer(const Renderer& _renderer, uint32_t _count, const VkBufferUsageFlagBits _bits)
-      : mDevice(_renderer.GetDevice())
-      , mCount(_count)
-      , mMapping(0)
-    {
-      VkBufferCreateInfo bufferCreateInfo = {};
-      bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      bufferCreateInfo.size = static_cast<uint32_t> (sizeof(T) * mCount);
-      bufferCreateInfo.usage = _bits;
+	class Buffer
+	{
+	public:
+		Buffer() = default;
+		virtual ~Buffer()
+		{
+			vkDestroyBuffer(device(), mBuffer, nullptr);
+			vkFreeMemory(device(), mMemory, nullptr);
+		}
 
-      vkCreateBuffer(mDevice, &bufferCreateInfo, nullptr, &mBuffer);
-      assert(mBuffer != nullptr);
+		Buffer& create()
+		{
+			VkBufferCreateInfo bufferCreateInfo = {};
+			bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+			bufferCreateInfo.size = mSize;
+			bufferCreateInfo.usage = mUsageFlags;
+			bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-      vkGetBufferMemoryRequirements(mDevice, mBuffer, &mBufferMemoryRequirements);
+			vkCreateBuffer(device(), &bufferCreateInfo, nullptr, &mBuffer);
+			assert(mBuffer != nullptr);
 
-      const std::vector<lava::MemoryTypeInfo>& heaps = _renderer.GetHeaps();
-      for (const auto& memoryInfo : heaps)
-      {
-        if (memoryInfo.hostVisible && memoryInfo.hostCoherent)
-        {
-          VkMemoryAllocateInfo memoryAllocateInfo = {};
-          memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-          memoryAllocateInfo.memoryTypeIndex = memoryInfo.index;
-          memoryAllocateInfo.allocationSize = mBufferMemoryRequirements.size;
-          vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory);
-          break;
-        }
-      }
-      assert(mMemory != VK_NULL_HANDLE);
+			VkMemoryRequirements	bufferMemoryRequirements;
+			vkGetBufferMemoryRequirements(device(), mBuffer, &bufferMemoryRequirements);
 
-      vkBindBufferMemory(mDevice, mBuffer, mMemory, 0);
-    }
+			const std::vector<lava::MemoryTypeInfo>& heaps = mRenderer->GetHeaps();
+			for (const auto& memoryInfo : heaps)
+			{
+				// The VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT communicates that the memory should be mapped so that the CPU(host) can access it.
+				// The VK_MEMORY_PROPERTY_HOST_COHERENT_BIT requests that the writes to the memory by the host are visible to the device(and vice - versa)
+				// without the need to flush memory caches.This just makes it a bit simpler to program, since it isn't necessary to call vkFlushMappedMemoryRanges
+				// and vkInvalidateMappedMemoryRanges to make sure that the data is visible to the GPU.
+				if (memoryInfo.hostVisible && memoryInfo.hostCoherent)
+				{
+					VkMemoryAllocateInfo memoryAllocateInfo = {};
+					memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+					memoryAllocateInfo.memoryTypeIndex = memoryInfo.index;
+					memoryAllocateInfo.allocationSize = bufferMemoryRequirements.size;
+					vkAllocateMemory(device(), &memoryAllocateInfo, nullptr, &mMemory);
+					break;
+				}
+			}
+			assert(mMemory != VK_NULL_HANDLE);
 
-    virtual ~Buffer()
-    {
-      vkDestroyBuffer(mDevice, mBuffer, nullptr);
-      vkFreeMemory(mDevice, mMemory, nullptr);
-    }
+			vkBindBufferMemory(device(), mBuffer, mMemory, 0);
+			return *this;
+		}
 
-    virtual void Bind(VkCommandBuffer) {};
+		virtual void Bind(VkCommandBuffer) { assert(false); };
+		Buffer& data(void * _data)
+		{
+			void* mapping = nullptr;
+			vkMapMemory(device(), mMemory, 0, mSize, 0, &mapping);
+			if (mapping)
+			{
+				std::memcpy(mapping, _data, mSize);
+				vkUnmapMemory(device(), mMemory);
+				mapping = nullptr;
+			}
+			return *this;
+		}
 
-    void Map()
-    {
-      vkMapMemory(mDevice, mMemory, 0, sizeof(T) * mCount, 0, &mMapping);
-    }
+		const VkBufferUsageFlagBits& usageFlags() const { return mUsageFlags; }
+		Buffer& usageFlags(const VkBufferUsageFlagBits& _flags) { mUsageFlags = _flags; return *this; }
+		
+		const uint32_t& size() const { return mSize; }
+		Buffer& size(const uint32_t& _size) { mSize = _size; return *this; }
 
-    void Copy(T* _data)
-    {
-      if (mMapping)
-        std::memcpy(mMapping, _data, sizeof(T) * mCount);
-    }
+		VkBuffer buffer() const { return mBuffer; }
 
-    void Unmap()
-    {
-      if (mMapping)
-      {
-        vkUnmapMemory(mDevice, mMemory);
-        mMapping = nullptr;
-      }
-    }
+		VkDevice device() const { return mRenderer->GetDevice(); }
+		const Renderer& renderer() const { return *mRenderer; }
+		Buffer&  renderer(Renderer& _renderer) { mRenderer = &_renderer; return *this; }
 
-  protected:
-    VkDevice mDevice = VK_NULL_HANDLE;
-    VkBuffer mBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory mMemory = VK_NULL_HANDLE;
-    void* mMapping = nullptr;
-    VkMemoryRequirements mBufferMemoryRequirements;
-    uint32_t mCount;
-  };
+	protected:
+		uint32_t	   mSize = 1;
+		VkBuffer	   mBuffer = VK_NULL_HANDLE;
+		VkDeviceMemory mMemory = VK_NULL_HANDLE;
+		VkBufferUsageFlagBits mUsageFlags;
+		Renderer*	mRenderer = nullptr;
+	};
 
-  template< typename T >
-  class VertexBuffer : public Buffer<T>
-  {
-  public:
-    VertexBuffer(const Renderer& _renderer, uint32_t _count)
-      : Buffer(_renderer, _count, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
-    {
-    }
-    virtual ~VertexBuffer() = default;
-    virtual void Bind(VkCommandBuffer commandBuffer)
-    {
-      VkDeviceSize offsets[] = { 0 };
-      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mBuffer, offsets);
-    }
-  private:
-  };
+	template< typename T >
+	class VertexBuffer : public Buffer
+	{
+	public:
+		VertexBuffer()
+		{
+			usageFlags(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		}
+		virtual ~VertexBuffer() = default;
+		VertexBuffer& count(const uint32_t& _count) { mCount = _count; size(_count * sizeof(T));  return *this; }
+		virtual void Bind(VkCommandBuffer commandBuffer) { VkDeviceSize offsets[] = { 0 }; vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mBuffer, offsets); }
+	private:
+		uint32_t mCount;
+	};
 
-  class IndexBuffer : public Buffer<uint32_t>
-  {
-  public:
-    IndexBuffer(const Renderer& _renderer, uint32_t _count)
-      : Buffer(_renderer, _count, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
-    {
-    }
-    virtual ~IndexBuffer() = default;
-    virtual void Bind(VkCommandBuffer commandBuffer)
-    {
-      vkCmdBindIndexBuffer(commandBuffer, mBuffer, 0, VK_INDEX_TYPE_UINT32);
-    }
-    void Draw(VkCommandBuffer commandBuffer)
-    {
-      vkCmdDrawIndexed(commandBuffer, mCount, 1, 0, 0, 0);
-    }
-  private:
-  };
+	class Index32Buffer : public Buffer
+	{
+	public:
+		Index32Buffer()
+		{
+			usageFlags(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+		}
+		virtual ~Index32Buffer() = default;
+		Index32Buffer& count(const uint32_t& _count) { mCount = _count; size(_count * sizeof(uint32_t)); return *this; }
+		virtual void Bind(VkCommandBuffer commandBuffer) { vkCmdBindIndexBuffer(commandBuffer, mBuffer, 0, VK_INDEX_TYPE_UINT32); }
+		void Draw(VkCommandBuffer commandBuffer) { vkCmdDrawIndexed(commandBuffer, mCount, 1, 0, 0, 0); }
+	private:
+		uint32_t mCount;
+	};
 
-  template< typename T >
-  class UniformBuffer : public Buffer<T>
-  {
-  public:
-    UniformBuffer(const Renderer& _renderer)
-      : Buffer(_renderer, 1, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
-    {
-      VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-      uboLayoutBinding.binding = 0;
-      uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-      uboLayoutBinding.descriptorCount = 1;
-      uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-      uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+	template< typename T >
+	class UniformBuffer : public Buffer
+	{
+	public:
+		UniformBuffer()
+		{
+			usageFlags(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+			size(sizeof(T));
+		}
 
-      VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-      layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-      layoutInfo.bindingCount = 1;
-      layoutInfo.pBindings = &uboLayoutBinding;
-
-      vkCreateDescriptorSetLayout(_renderer.GetDevice(), &layoutInfo, nullptr, &mDescriptorSetLayout);
-    }
-    virtual ~UniformBuffer()
-    {
-      vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
-    }
-    VkDescriptorSetLayout GetDescriptorSetLayout() const { return mDescriptorSetLayout; }
-  private:
-    VkDescriptorSetLayout mDescriptorSetLayout = VK_NULL_HANDLE;
-  };
-
-
+		virtual ~UniformBuffer() = default;
+	};
 }

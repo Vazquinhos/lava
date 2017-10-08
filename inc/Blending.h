@@ -8,11 +8,11 @@ namespace lava
     class Blending
     {
     public:
-        Blending( bool _enabled )
+        Blending()
         {
             mPipelineColorBlendAttachmentState = {};
             mPipelineColorBlendAttachmentState.colorWriteMask = 0xF;
-            mPipelineColorBlendAttachmentState.blendEnable = _enabled ? VK_TRUE : VK_FALSE;
+			mPipelineColorBlendAttachmentState.blendEnable = VK_FALSE;//_enabled ? VK_TRUE : VK_FALSE;
 
             mPipelineColorBlendStateCreateInfo = {};
             mPipelineColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

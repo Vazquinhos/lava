@@ -1,115 +1,243 @@
 #include "Pipeline.h"
 
 #include "Renderer.h"
+
 #include "Technique.h"
+
+#include <chrono>
 
 namespace lava
 {
-  Pipeline::Pipeline(const Renderer& _renderer)
-    : viewport(VkOffset2D({ 0,0 }), { _renderer.GetFrameBufferWidth(), _renderer.GetFrameBufferHeight() })
-    , blending(false)
-    , mDevice(_renderer.GetDevice())
-  {
-    mGraphicsPipelineCreateInfo = {};
-    mGraphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
-    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-
-    vkCreatePipelineLayout(mDevice, &pipelineLayoutCreateInfo, nullptr, &mPipelineLayout);
-    assert(mPipelineLayout != VK_NULL_HANDLE);
-
-    mGraphicsPipelineCreateInfo.layout = mPipelineLayout;
-
-    mGraphicsPipelineCreateInfo.renderPass = _renderer.GetRenderPass();
-  }
-
   void Pipeline::Create()
-  {
-    // Set the input layout that will the shaders have
-    VkVertexInputBindingDescription vertexInputBindingDescription = { 0, mOffset, VK_VERTEX_INPUT_RATE_VERTEX };
+  {	
+	  
+	  createDescriptorSetLayout();
+	  createGraphicsPipeline();
+	  createUniformBuffer();
+	  createDescriptorPool();
+	  createDescriptorSet();
+	  
+	  /*
+	  VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {};
+	  graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	  graphicsPipelineCreateInfo.renderPass = mRenderer->GetRenderPass();
 
-    VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo = {};
-    pipelineVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    pipelineVertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(mVertexInputAttributeDescription.size());
-    pipelineVertexInputStateCreateInfo.pVertexAttributeDescriptions = mVertexInputAttributeDescription.data();
-    pipelineVertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-    pipelineVertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDescription;
+	  //
+	  // Set the input layout of the vertices
+	  //
+	  std::vector< VkVertexInputAttributeDescription > descriptorInputAttributeDescriptions;
+	  uint32_t offset = 0;
+	  uint32_t location = 0;
+	  uint32_t binding = 0;
+	  if ((mVertexFlags & lava::VertexFlags::ePosition) == lava::VertexFlags::ePosition)
+	  {
+		  descriptorInputAttributeDescriptions.resize(location + 1);
+		  descriptorInputAttributeDescriptions[location].location = location;
+		  descriptorInputAttributeDescriptions[location].binding = binding;
+		  descriptorInputAttributeDescriptions[location].offset = offset;
+		  descriptorInputAttributeDescriptions[location].format = VK_FORMAT_R32G32B32_SFLOAT;
+		  offset += sizeof(float) * 3;
+		  location++;
+	  }
 
-    mGraphicsPipelineCreateInfo.pVertexInputState = &pipelineVertexInputStateCreateInfo;
+	  if ((mVertexFlags & lava::VertexFlags::eNormal) == lava::VertexFlags::eNormal)
+	  {
+		  descriptorInputAttributeDescriptions.resize(location + 1);
+		  descriptorInputAttributeDescriptions[location].location = location;
+		  descriptorInputAttributeDescriptions[location].binding = binding;
+		  descriptorInputAttributeDescriptions[location].offset = offset;
+		  descriptorInputAttributeDescriptions[location].format = VK_FORMAT_R32G32B32_SFLOAT;
+		  offset += sizeof(float) * 3;
+		  location++;
+	  }
 
-    // Set the vertex topology
-    VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo = {};
-    pipelineInputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    pipelineInputAssemblyStateCreateInfo.topology = mTopology;
+	  if ((mVertexFlags & lava::VertexFlags::eTangent) == lava::VertexFlags::eTangent)
+	  {
+		  descriptorInputAttributeDescriptions.resize(location + 1);
+		  descriptorInputAttributeDescriptions[location].location = location;
+		  descriptorInputAttributeDescriptions[location].binding = binding;
+		  descriptorInputAttributeDescriptions[location].offset = offset;
+		  descriptorInputAttributeDescriptions[location].format = VK_FORMAT_R32G32B32_SFLOAT;
+		  offset += sizeof(float) * 3;
+		  location++;
+	  }
 
-    mGraphicsPipelineCreateInfo.pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo;
+	  if ((mVertexFlags & lava::VertexFlags::eBinormal) == lava::VertexFlags::eBinormal)
+	  {
+		  descriptorInputAttributeDescriptions.resize(location + 1);
+		  descriptorInputAttributeDescriptions[location].location = location;
+		  descriptorInputAttributeDescriptions[location].binding = binding;
+		  descriptorInputAttributeDescriptions[location].offset = offset;
+		  descriptorInputAttributeDescriptions[location].format = VK_FORMAT_R32G32B32_SFLOAT;
+		  offset += sizeof(float) * 3;
+		  location++;
+	  }
 
-    // Set blending, viewport, raster, depth and multisample configuration for this pipeline
-    mGraphicsPipelineCreateInfo.pViewportState = viewport.GetVkPipelineViewportStateCreateInfo();
-    mGraphicsPipelineCreateInfo.pColorBlendState = blending.GetVkPipelineColorBlendStateCreateInfo();
-    mGraphicsPipelineCreateInfo.pRasterizationState = rasterizer.GetVkPipelineRasterizationStateCreateInfo();
-    mGraphicsPipelineCreateInfo.pDepthStencilState = depthStencil.GetVkPipelineDepthStencilStateCreateInfo();
-    mGraphicsPipelineCreateInfo.pMultisampleState = multisample.GetVkPipelineMultisampleStateCreateInfo();
+	  if ((mVertexFlags & lava::VertexFlags::eUv) == lava::VertexFlags::eUv)
+	  {
+		  descriptorInputAttributeDescriptions.resize(location + 1);
+		  descriptorInputAttributeDescriptions[location].location = location;
+		  descriptorInputAttributeDescriptions[location].binding = binding;
+		  descriptorInputAttributeDescriptions[location].offset = offset;
+		  descriptorInputAttributeDescriptions[location].format = VK_FORMAT_R32G32_SFLOAT;
+		  offset += sizeof(float) * 2;
+		  location++;
+	  }
 
-    // Shaders
-    mGraphicsPipelineCreateInfo.stageCount = mTechnique->GetNumStages();
-    mGraphicsPipelineCreateInfo.pStages = mTechnique->GetVkPipelineShaderStageCreateInfo();
+	  debugLog(std::string("Number of locations for the pipeline ") + std::to_string(location));
 
-    //mGraphicsPipelineCreateInfo.setLayoutCount = 1;
-    //mGraphicsPipelineCreateInfo.pSetLayouts = &(_uniformBuffer.GetDescriptorSetLayout());
+	  VkVertexInputBindingDescription vertexInputBindingDescription = { 0, offset, VK_VERTEX_INPUT_RATE_VERTEX };
 
-    vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &mGraphicsPipelineCreateInfo, nullptr, &mPipeline);
+	  VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo = {};
+	  pipelineVertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	  pipelineVertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(descriptorInputAttributeDescriptions.size());
+	  pipelineVertexInputStateCreateInfo.pVertexAttributeDescriptions = descriptorInputAttributeDescriptions.data();
+	  pipelineVertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+	  pipelineVertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexInputBindingDescription;
+
+	  graphicsPipelineCreateInfo.pVertexInputState = &pipelineVertexInputStateCreateInfo;
+
+	  //
+	  // Set the vertex topology
+	  //
+	  VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo = {};
+	  pipelineInputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	  pipelineInputAssemblyStateCreateInfo.topology = mTopology;
+
+	  graphicsPipelineCreateInfo.pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo;
+
+	  //
+	  // Set the shaders of the pipeline
+	  //
+	  graphicsPipelineCreateInfo.stageCount = mTechnique->GetNumStages();
+	  graphicsPipelineCreateInfo.pStages = mTechnique->GetVkPipelineShaderStageCreateInfo();
+
+	  //
+	  // Set blending, viewport, raster, depth and multisample configuration for this pipeline
+	  //
+	  graphicsPipelineCreateInfo.pViewportState = mViewport.GetVkPipelineViewportStateCreateInfo();
+	  graphicsPipelineCreateInfo.pColorBlendState = mBlending.GetVkPipelineColorBlendStateCreateInfo();
+	  graphicsPipelineCreateInfo.pRasterizationState = mRasterizer.GetVkPipelineRasterizationStateCreateInfo();
+	  graphicsPipelineCreateInfo.pDepthStencilState = mDepthStencil.GetVkPipelineDepthStencilStateCreateInfo();
+	  graphicsPipelineCreateInfo.pMultisampleState = mMultisample.GetVkPipelineMultisampleStateCreateInfo();
+
+	  //
+	  // Create the pipeline layout
+	  //
+	  glm::vec3 colorRed(1, 0, 0);
+	  lava::UniformBuffer<glm::vec3> colorBuffer;
+
+	  colorBuffer
+		  .renderer(*mRenderer)
+		  .create()
+		  .data(&colorRed);
+
+	  const size_t idx = mDescriptorSetLayouts.size();
+	  mDescriptorSetLayouts.resize(idx + 1);
+	  VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+	  uboLayoutBinding.binding = 0;
+	  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	  uboLayoutBinding.descriptorCount = 1;
+	  uboLayoutBinding.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	  uboLayoutBinding.pImmutableSamplers = nullptr;
+
+	  VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	  layoutInfo.bindingCount = 1;
+	  layoutInfo.pBindings = &uboLayoutBinding;
+
+	  if (vkCreateDescriptorSetLayout(renderer().GetDevice(), &layoutInfo, nullptr, &mDescriptorSetLayouts[idx]) != VK_SUCCESS)
+		  errorLog("failed to create descriptor set layout!");
+
+	  VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+	  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	  pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(mDescriptorSetLayouts.size());
+	  pipelineLayoutInfo.pSetLayouts = mDescriptorSetLayouts.data();
+	  pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+	  pipelineLayoutInfo.pPushConstantRanges = 0; // Optional
+
+	  if (vkCreatePipelineLayout(device(), &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
+		  errorLog("failed to create pipeline layout!");
+
+	  graphicsPipelineCreateInfo.layout = mPipelineLayout;
+
+	  //
+	  // Create the descriptors pool
+	  //
+	  VkDescriptorPoolSize poolSize = {};
+	  poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	  poolSize.descriptorCount = 1;
+
+	  VkDescriptorPoolCreateInfo poolInfo = {};
+	  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	  poolInfo.poolSizeCount = 1;
+	  poolInfo.pPoolSizes = &poolSize;
+	  poolInfo.maxSets = 1;
+
+	  if (vkCreateDescriptorPool(device(), &poolInfo, nullptr, &mDescriptorPool) != VK_SUCCESS) {
+		  errorLog("failed to create descriptor pool!");
+	  }
+
+	  //
+	  // Create the descriptors set
+	  //
+	  VkDescriptorSetAllocateInfo allocInfo = {};
+	  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	  allocInfo.descriptorPool = mDescriptorPool;
+	  allocInfo.descriptorSetCount = 1;
+	  allocInfo.pSetLayouts = mDescriptorSetLayouts.data();
+
+	  if (vkAllocateDescriptorSets(device(), &allocInfo, &mDescriptorSet) != VK_SUCCESS) {
+		  throw std::runtime_error("failed to allocate descriptor set!");
+	  }
+
+	  VkDescriptorBufferInfo bufferInfo = {};
+	  bufferInfo.buffer = colorBuffer.buffer();
+	  bufferInfo.offset = 0;
+	  bufferInfo.range = sizeof(glm::vec3);
+
+	  VkWriteDescriptorSet descriptorWrite = {};
+	  descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	  descriptorWrite.dstSet = mDescriptorSet;
+	  descriptorWrite.dstBinding = 0;
+	  descriptorWrite.dstArrayElement = 0;
+	  descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	  descriptorWrite.descriptorCount = 1;
+	  descriptorWrite.pBufferInfo = &bufferInfo;
+
+	  vkUpdateDescriptorSets(device(), 1, &descriptorWrite, 0, nullptr);
+
+	  //
+	  // Finally create the pipeline
+	  //
+	  if (vkCreateGraphicsPipelines(device(), VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mPipeline) != VK_SUCCESS)
+		  errorLog("failed to create the graphics pipeline");
+		  */
   }
 
-  Pipeline::~Pipeline()
+  void Pipeline::Destroy()
   {
-    ShutDown();
-  }
-
-  template <typename ...VertexFlags>
-  void SetInputVertexLayout(uint32_t _binding, VertexFlags&&... _flags)
-  {
-    static const uint32_t size = sizeof...(VertexFlags);
-    mVertexInputAttributeDescription.resize(size);
-    mOffset = 0;
-    std::vector<VertexFlag> flags = { _flags... };
-    for (uint32_t location = 0; location < size; ++location)
-    {
-      vVertexInputAttributeDescription[location].binding = _binding;
-      vVertexInputAttributeDescription[location].location = location;
-      vVertexInputAttributeDescription[location].offset = offset;
-
-      VkFormat format = VK_FORMAT_UNDEFINED;
-      switch (flags[location])
-      {
-      case VertexFlag::Position:
-      case VertexFlag::Normal:
-      case VertexFlag::Tangent:
-      case VertexFlag::Binormal:
-        format = VK_FORMAT_R32G32B32_SFLOAT;
-        mOffset += sizeof(float) * 3;
-        break;
-      case VertexFlag::Uv:
-        format = VK_FORMAT_R32G32_SFLOAT;
-        mOffset += sizeof(float) * 2;
-        break;
-      default:
-        assert(false);
-        break;
-      }
-      vVertexInputAttributeDescription[location].format = format;
-    }
-  }
-
-  void Pipeline::ShutDown()
-  {
-    vkDestroyPipeline(mDevice, mPipeline, nullptr);
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
   }
 
   void Pipeline::Bind(VkCommandBuffer _commandBuffer)
   {
-    vkCmdBindPipeline(_commandBuffer, mPipelineBindPoint, mPipeline);
+	  static auto startTime = std::chrono::high_resolution_clock::now();
+
+	  auto currentTime = std::chrono::high_resolution_clock::now();
+	  float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
+
+	  PerObject ubo = {};
+	  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	  ubo.proj = glm::perspective(glm::radians(45.0f), 800 / (float)600, 0.1f, 10.0f);
+	  ubo.proj[1][1] *= -1;
+
+	  void* data;
+	  vkMapMemory(device(), uniformBufferMemory, 0, sizeof(ubo), 0, &data);
+	  memcpy(data, &ubo, sizeof(ubo));
+	  vkUnmapMemory(device(), uniformBufferMemory);
+
+	vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+	vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
   }
 }

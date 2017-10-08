@@ -47,3 +47,7 @@ project "lavaEngine"
 	{
 		"vulkan-1",
 	}
+
+project "shaders"
+	kind "StaticLib"
+	files {"../data/**.frag", "../data/**.vert"}
