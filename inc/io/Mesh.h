@@ -23,10 +23,10 @@ namespace lava
     public:
       Mesh() = default;
       virtual ~Mesh() = default;
-      bool Load(const std::string& _filePath, const Renderer& _renderer);
+      bool Load(const std::string& _filePath, Renderer& _renderer);
 
-    private:
-      std::vector< std::shared_ptr< Geometry<Vertex> > > mGeometry;
+    public:
+      std::vector< IndexedGeometry<Vertex> > mGeometry;
     };
   }
 }

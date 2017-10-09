@@ -9,7 +9,7 @@ namespace lava
 {
   namespace io
   {
-    bool Mesh::Load(const std::string& _filePath, const Renderer& _renderer)
+    bool Mesh::Load(const std::string& _filePath, Renderer& _renderer)
     {
       tinyobj::attrib_t attrib;
       std::vector<tinyobj::shape_t> shapes;
@@ -34,6 +34,7 @@ namespace lava
       if (ret)
       {
         // Loop over shapes
+        mGeometry.resize(shapes.size());
         for (size_t s = 0; s < shapes.size(); ++s)
         {
           std::map< std::string, size_t > vertexBufferMap;
@@ -61,14 +62,14 @@ namespace lava
             glm::vec3 v2(attrib.vertices[3 * idx2.vertex_index + 0], attrib.vertices[3 * idx2.vertex_index + 1], attrib.vertices[3 * idx2.vertex_index + 2]);
 
             // Shortcuts for normals
-            glm::vec3 n0(attrib.vertices[3 * idx0.normal_index + 0], attrib.vertices[3 * idx0.normal_index + 1], attrib.vertices[3 * idx0.normal_index + 2]);
-            glm::vec3 n1(attrib.vertices[3 * idx1.normal_index + 0], attrib.vertices[3 * idx1.normal_index + 1], attrib.vertices[3 * idx1.normal_index + 2]);
-            glm::vec3 n2(attrib.vertices[3 * idx2.normal_index + 0], attrib.vertices[3 * idx2.normal_index + 1], attrib.vertices[3 * idx2.normal_index + 2]);
+            glm::vec3 n0 = idx0.normal_index > 0 ? glm::vec3(attrib.vertices[3 * idx0.normal_index + 0], attrib.vertices[3 * idx0.normal_index + 1], attrib.vertices[3 * idx0.normal_index + 2]) : glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 n1 = idx1.normal_index > 0 ? glm::vec3(attrib.vertices[3 * idx1.normal_index + 0], attrib.vertices[3 * idx1.normal_index + 1], attrib.vertices[3 * idx1.normal_index + 2]) : glm::vec3(0.0f, 0.0f, 1.0f);
+            glm::vec3 n2 = idx2.normal_index > 0 ? glm::vec3(attrib.vertices[3 * idx2.normal_index + 0], attrib.vertices[3 * idx2.normal_index + 1], attrib.vertices[3 * idx2.normal_index + 2]) : glm::vec3(0.0f, 1.0f, 0.0f);
 
             // Shortcuts for texcoords
-            glm::vec2 uv0(attrib.texcoords[2 * idx0.texcoord_index + 0], attrib.texcoords[2 * idx0.texcoord_index + 1]);
-            glm::vec2 uv1(attrib.texcoords[2 * idx1.texcoord_index + 0], attrib.texcoords[2 * idx1.texcoord_index + 1]);
-            glm::vec2 uv2(attrib.texcoords[2 * idx2.texcoord_index + 0], attrib.texcoords[2 * idx2.texcoord_index + 1]);
+            glm::vec2 uv0 = idx0.texcoord_index > 0 ? glm::vec2(attrib.texcoords[2 * idx0.texcoord_index + 0], attrib.texcoords[2 * idx0.texcoord_index + 1]) : glm::vec2(1.0f, 1.0f);
+            glm::vec2 uv1 = idx1.texcoord_index > 0 ? glm::vec2(attrib.texcoords[2 * idx1.texcoord_index + 0], attrib.texcoords[2 * idx1.texcoord_index + 1]) : glm::vec2(0.0f, 1.0f);
+            glm::vec2 uv2 = idx2.texcoord_index > 0 ? glm::vec2(attrib.texcoords[2 * idx2.texcoord_index + 0], attrib.texcoords[2 * idx2.texcoord_index + 1]) : glm::vec2(1.0f, 0.0f);
 
             // Edges of the triangle : postion delta
             glm::vec3 deltaPos1 = v1 - v0;
@@ -86,7 +87,7 @@ namespace lava
             {
               { v0, n0, tangent, bitangent, uv0 },
               { v1, n1, tangent, bitangent, uv1 },
-              { v2, n2, tangent, bitangent, uv2 }
+              { v2, n2, tangent, bitangent, uv2 },
             };
 
             for (size_t v = 0; v < fv; ++v)
@@ -128,9 +129,13 @@ namespace lava
               vertexBuffer[v].tangent *= -1.0f;
 
             vertexBuffer[v].bitangent = glm::normalize(glm::cross(vertexBuffer[v].normal, vertexBuffer[v].tangent));
+            vertexBuffer[v].normal = glm::normalize(vertexBuffer[v].normal);
           }
 
-          //mGeometry[s] = std::make_shared < Geometry<Vertex>>(_renderer, vertexBuffer.data(), (uint32_t)vertexBuffer.size(), indexBuffer.data(), (uint32_t)indexBuffer.size());
+          mGeometry[s]
+            .renderer(_renderer)
+            .vertices(vertexBuffer.data(), (uint32_t)vertexBuffer.size())
+            .indices(indexBuffer.data(), (uint32_t)indexBuffer.size());
         }
 
         return true;

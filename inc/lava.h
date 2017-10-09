@@ -24,6 +24,17 @@
 #include <glm\mat4x4.hpp>
 #pragma warning( pop ) 
 
+
+#ifdef _DEBUG
+
+#define  vkCall(x) if (x != VK_SUCCESS) errorLog(#x)
+
+#else
+
+#define  vkCall(x) x;
+
+#endif
+
 namespace lava
 {
     static const int sQueueSlotCount = 3;

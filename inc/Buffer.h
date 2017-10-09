@@ -6,127 +6,84 @@
 
 namespace lava
 {
-	class Buffer
-	{
-	public:
-		Buffer() = default;
-		virtual ~Buffer()
-		{
-			vkDestroyBuffer(device(), mBuffer, nullptr);
-			vkFreeMemory(device(), mMemory, nullptr);
-		}
+  class Buffer
+  {
+  public:
+    Buffer() = default;
+    virtual ~Buffer() = default;
 
-		Buffer& create()
-		{
-			VkBufferCreateInfo bufferCreateInfo = {};
-			bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-			bufferCreateInfo.size = mSize;
-			bufferCreateInfo.usage = mUsageFlags;
-			bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    
 
-			vkCreateBuffer(device(), &bufferCreateInfo, nullptr, &mBuffer);
-			assert(mBuffer != nullptr);
+    Buffer& create
+    (
+      VkDeviceSize _size,
+      VkBufferUsageFlags _usage,
+      VkMemoryPropertyFlags _properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    )
+    {
+      VkBufferCreateInfo  bufferInfo = {};
+      bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+      bufferInfo.size = _size;
+      bufferInfo.usage = _usage;
+      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-			VkMemoryRequirements	bufferMemoryRequirements;
-			vkGetBufferMemoryRequirements(device(), mBuffer, &bufferMemoryRequirements);
+      vkCall(vkCreateBuffer(device(), &bufferInfo, nullptr, &vkBuffer));
 
-			const std::vector<lava::MemoryTypeInfo>& heaps = mRenderer->GetHeaps();
-			for (const auto& memoryInfo : heaps)
-			{
-				// The VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT communicates that the memory should be mapped so that the CPU(host) can access it.
-				// The VK_MEMORY_PROPERTY_HOST_COHERENT_BIT requests that the writes to the memory by the host are visible to the device(and vice - versa)
-				// without the need to flush memory caches.This just makes it a bit simpler to program, since it isn't necessary to call vkFlushMappedMemoryRanges
-				// and vkInvalidateMappedMemoryRanges to make sure that the data is visible to the GPU.
-				if (memoryInfo.hostVisible && memoryInfo.hostCoherent)
-				{
-					VkMemoryAllocateInfo memoryAllocateInfo = {};
-					memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-					memoryAllocateInfo.memoryTypeIndex = memoryInfo.index;
-					memoryAllocateInfo.allocationSize = bufferMemoryRequirements.size;
-					vkAllocateMemory(device(), &memoryAllocateInfo, nullptr, &mMemory);
-					break;
-				}
-			}
-			assert(mMemory != VK_NULL_HANDLE);
+      VkMemoryRequirements  memRequirements;
+      vkGetBufferMemoryRequirements(device(), vkBuffer, &memRequirements);
 
-			vkBindBufferMemory(device(), mBuffer, mMemory, 0);
-			return *this;
-		}
+      VkMemoryAllocateInfo  allocInfo = {};
+      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+      allocInfo.allocationSize = memRequirements.size;
+      allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, _properties);
 
-		virtual void Bind(VkCommandBuffer) { assert(false); };
-		Buffer& data(void * _data)
-		{
-			void* mapping = nullptr;
-			vkMapMemory(device(), mMemory, 0, mSize, 0, &mapping);
-			if (mapping)
-			{
-				std::memcpy(mapping, _data, mSize);
-				vkUnmapMemory(device(), mMemory);
-				mapping = nullptr;
-			}
-			return *this;
-		}
+      vkCall(vkAllocateMemory(device(), &allocInfo, nullptr, &bufferMemory));
 
-		const VkBufferUsageFlagBits& usageFlags() const { return mUsageFlags; }
-		Buffer& usageFlags(const VkBufferUsageFlagBits& _flags) { mUsageFlags = _flags; return *this; }
-		
-		const uint32_t& size() const { return mSize; }
-		Buffer& size(const uint32_t& _size) { mSize = _size; return *this; }
+      vkBindBufferMemory(device(), vkBuffer, bufferMemory, 0);
+      return *this;
+    }
 
-		VkBuffer buffer() const { return mBuffer; }
+    Buffer& destroy()
+    {
+      vkDestroyBuffer(device(), vkBuffer, nullptr);
+      vkFreeMemory(device(), bufferMemory, nullptr);
+      return *this;
+    }
 
-		VkDevice device() const { return mRenderer->GetDevice(); }
-		const Renderer& renderer() const { return *mRenderer; }
-		Buffer&  renderer(Renderer& _renderer) { mRenderer = &_renderer; return *this; }
+    Buffer& update(void* _data, VkDeviceSize _size)
+    {
+      void* mapping = nullptr;
+      vkCall(vkMapMemory(device(), bufferMemory, 0, _size, 0, &mapping));
+      memcpy(mapping, _data, _size);
+      vkUnmapMemory(device(), bufferMemory);
+      return *this;
+    }
 
-	protected:
-		uint32_t	   mSize = 1;
-		VkBuffer	   mBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory mMemory = VK_NULL_HANDLE;
-		VkBufferUsageFlagBits mUsageFlags;
-		Renderer*	mRenderer = nullptr;
-	};
+    VkBuffer buffer() const { return vkBuffer; }
+    const VkBuffer* bufferPtr() const { return &vkBuffer; }
 
-	template< typename T >
-	class VertexBuffer : public Buffer
-	{
-	public:
-		VertexBuffer()
-		{
-			usageFlags(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-		}
-		virtual ~VertexBuffer() = default;
-		VertexBuffer& count(const uint32_t& _count) { mCount = _count; size(_count * sizeof(T));  return *this; }
-		virtual void Bind(VkCommandBuffer commandBuffer) { VkDeviceSize offsets[] = { 0 }; vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mBuffer, offsets); }
-	private:
-		uint32_t mCount;
-	};
+    VkDevice device() const { return mRenderer->GetDevice(); }
+    const Renderer& renderer() const { return *mRenderer; }
+    Buffer&  renderer(Renderer& _renderer) { mRenderer = &_renderer; return *this; }
 
-	class Index32Buffer : public Buffer
-	{
-	public:
-		Index32Buffer()
-		{
-			usageFlags(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-		}
-		virtual ~Index32Buffer() = default;
-		Index32Buffer& count(const uint32_t& _count) { mCount = _count; size(_count * sizeof(uint32_t)); return *this; }
-		virtual void Bind(VkCommandBuffer commandBuffer) { vkCmdBindIndexBuffer(commandBuffer, mBuffer, 0, VK_INDEX_TYPE_UINT32); }
-		void Draw(VkCommandBuffer commandBuffer) { vkCmdDrawIndexed(commandBuffer, mCount, 1, 0, 0, 0); }
-	private:
-		uint32_t mCount;
-	};
+  private:
+    Renderer*       mRenderer = nullptr;
+    VkBuffer        vkBuffer;
+    VkDeviceMemory  bufferMemory;
 
-	template< typename T >
-	class UniformBuffer : public Buffer
-	{
-	public:
-		UniformBuffer()
-		{
-			usageFlags(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-			size(sizeof(T));
-		}
+    uint32_t  findMemoryType(uint32_t  typeFilter, VkMemoryPropertyFlags  properties)
+    {
+      VkPhysicalDeviceMemoryProperties  memProperties;
+      vkGetPhysicalDeviceMemoryProperties(renderer().GetPhysicalDevice(), &memProperties);
 
-		virtual ~UniformBuffer() = default;
-	};
+      for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
+      {
+        if ((typeFilter  &  (1 << i)) && (memProperties.memoryTypes[i].propertyFlags  &  properties) == properties)
+          return  i;
+      }
+
+      errorLog("failed  to  find  suitable  memory  type!");
+      return 0;
+    }
+  };
 }
