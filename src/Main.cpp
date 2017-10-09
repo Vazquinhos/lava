@@ -68,7 +68,7 @@ int main()
 
   pipeline.Create();
 
-  mesh.Load("meshes/cylinder.obj", lavaRenderer);
+  mesh.Load("meshes/mitsuba-sphere.obj", lavaRenderer);
 
   Vertex vertices[8] =
   {

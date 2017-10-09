@@ -12,8 +12,6 @@ namespace lava
     Buffer() = default;
     virtual ~Buffer() = default;
 
-    
-
     Buffer& create
     (
       VkDeviceSize _size,

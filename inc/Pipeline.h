@@ -194,8 +194,8 @@ namespace  lava
       rasterizer.rasterizerDiscardEnable = VK_FALSE;
       rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
       rasterizer.lineWidth = 1.0f;
-      rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-      rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+      rasterizer.cullMode = VK_CULL_MODE_NONE;
+      rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
       rasterizer.depthBiasEnable = VK_FALSE;
 
       VkPipelineMultisampleStateCreateInfo  multisampling = {};
@@ -217,6 +217,18 @@ namespace  lava
       colorBlending.blendConstants[1] = 0.0f;
       colorBlending.blendConstants[2] = 0.0f;
       colorBlending.blendConstants[3] = 0.0f;
+
+	  VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo = {};
+	  pipelineDepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	  pipelineDepthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+	  pipelineDepthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
+	  pipelineDepthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	  pipelineDepthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+	  pipelineDepthStencilStateCreateInfo.back.failOp = VK_STENCIL_OP_KEEP;
+	  pipelineDepthStencilStateCreateInfo.back.passOp = VK_STENCIL_OP_KEEP;
+	  pipelineDepthStencilStateCreateInfo.back.compareOp = VK_COMPARE_OP_ALWAYS;
+	  pipelineDepthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
+	  pipelineDepthStencilStateCreateInfo.front = pipelineDepthStencilStateCreateInfo.back;
 
       VkPipelineLayoutCreateInfo  pipelineLayoutInfo = {};
       pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -248,6 +260,7 @@ namespace  lava
       pipelineInfo.pRasterizationState = &rasterizer;
       pipelineInfo.pMultisampleState = &multisampling;
       pipelineInfo.pColorBlendState = &colorBlending;
+	  pipelineInfo.pDepthStencilState = &pipelineDepthStencilStateCreateInfo;
       pipelineInfo.layout = pipelineLayout;
       pipelineInfo.renderPass = mRenderer->GetRenderPass();
       pipelineInfo.subpass = 0;
