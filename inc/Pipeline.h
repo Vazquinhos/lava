@@ -229,10 +229,21 @@ namespace lava
 				throw std::runtime_error("failed to create pipeline layout!");
 			}
 
+      const uint32_t stageCount = mTechnique->shaderCount();
+      std::vector<VkPipelineShaderStageCreateInfo> shaderStages(stageCount);
+      for (uint32_t iStage = 0; iStage < stageCount; ++iStage)
+      {
+        const auto& shader = mTechnique->shaderAt(iStage);
+        shaderStages[iStage].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[iStage].module = shader.second->GetVkShaderModule();
+        shaderStages[iStage].pName = "main";
+        shaderStages[iStage].stage = shader.first;
+      }
+
 			VkGraphicsPipelineCreateInfo pipelineInfo = {};
 			pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-			pipelineInfo.stageCount = 2;
-			pipelineInfo.pStages = mTechnique->GetVkPipelineShaderStageCreateInfo();;
+			pipelineInfo.stageCount = stageCount;
+      pipelineInfo.pStages = shaderStages.data();
 			pipelineInfo.pVertexInputState = &vertexInputInfo;
 			pipelineInfo.pInputAssemblyState = &inputAssembly;
 			pipelineInfo.pViewportState = &viewportState;

@@ -58,7 +58,10 @@ int main()
   lava::Shader triangleVs(lavaRenderer.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT, "shaders/vert.spv");
   lava::Shader triangleFs(lavaRenderer.GetDevice(), VK_SHADER_STAGE_FRAGMENT_BIT, "shaders/frag.spv");
 
-  lava::Technique triangleTechnique(triangleVs, triangleFs);
+  lava::Technique triangleTechnique;
+  triangleTechnique
+    .shader(VK_SHADER_STAGE_VERTEX_BIT, &triangleVs)
+    .shader(VK_SHADER_STAGE_FRAGMENT_BIT, &triangleFs);
   
   glm::vec3 colorRed(1, 0, 0);
   lava::UniformBuffer<glm::vec3> colorBuffer;
