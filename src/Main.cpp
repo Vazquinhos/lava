@@ -23,7 +23,7 @@ namespace
   lava::io::Mesh mesh;
 }
 
-int main()
+INT WinMain(HINSTANCE,HINSTANCE,PSTR,INT )
 {
   lava::Renderer lavaRenderer;
   lavaRenderer
@@ -35,7 +35,7 @@ int main()
         OutputDebugStringA(fullMsg.c_str());
       }
     )
-    .createWindow(800,600)
+    .createWindow(300,300)
     .renderingFunction
     (
       [](VkCommandBuffer commandBuffer)
@@ -68,7 +68,7 @@ int main()
 
   pipeline.Create();
 
-  mesh.Load("meshes/mitsuba-sphere.obj", lavaRenderer);
+  mesh.Load("meshes/dragon.obj", lavaRenderer);
 
   Vertex vertices[8] =
   {

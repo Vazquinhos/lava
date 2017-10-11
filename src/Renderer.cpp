@@ -6,6 +6,11 @@ namespace lava
 {
   void Renderer::Create()
   {
+    setWindowHandle(mWindow->GetHWND());
+    device
+      .enableValidation(true)
+      .windowHandle(mWindow->GetHWND())
+      .create();
     // The extensions asked by the user must be checked with the available extensions in this platform
     uint32_t extensionCount = 0;
     VkResult r = vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -18,7 +23,7 @@ namespace lava
     std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface" };
   
 #ifdef  _DEBUG
-    std::vector<const char*> layers = { "VK_LAYER_RENDERDOC_Capture", "VK_LAYER_LUNARG_standard_validation" };
+    std::vector<const char*> layers = { /*"VK_LAYER_RENDERDOC_Capture",*/ "VK_LAYER_LUNARG_standard_validation" };
 
     /*
     // The same goes for the layers asked by the user...

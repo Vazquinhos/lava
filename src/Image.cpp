@@ -3,7 +3,6 @@
 #include "lava.h"
 #include "Debug.h"
 #include "Window.h"
-#include "Device.h"
 
 namespace lava
 {
@@ -48,7 +47,6 @@ namespace lava
     const std::vector<MemoryTypeInfo>& GetHeaps() const { return mHeaps; }
 
   protected:
-    Device           device;
     VkInstance       mInstance = VK_NULL_HANDLE;
     VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
     VkDevice         mDevice = VK_NULL_HANDLE;

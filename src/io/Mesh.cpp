@@ -5,106 +5,85 @@
 #define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
 #include "tiny_obj_loader.h"
 
+#include <assimp/Importer.hpp>      // C++ importer interface
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
+
 namespace lava
 {
-	namespace io
-	{
-		bool Mesh::Load(const std::string& _filePath, Renderer& _renderer)
-		{
-			tinyobj::attrib_t attrib;
-			std::vector<tinyobj::shape_t> shapes;
-			std::vector<tinyobj::material_t> materials;
+  namespace io
+  {
+    bool Mesh::Load(const std::string& _filePath, Renderer& _renderer)
+    {
+      // Create an instance of the Importer class
+      Assimp::Importer importer;
+      // And have it read the given file with some example postprocessing
+      // Usually - if speed is not the most important aspect for you - you'll
+      // probably to request more postprocessing than we do in this example.
+      const aiScene* scene = importer.ReadFile(_filePath,
+        aiProcess_CalcTangentSpace |
+        aiProcess_GenNormals |
+        aiProcess_GenSmoothNormals |
+        aiProcess_Triangulate |
+        aiProcess_FlipWindingOrder |
+        aiProcess_FlipUVs);
 
-			std::string err;
-			bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, _filePath.c_str());
+      if (scene)
+      {
+        // Generate vertex buffer from ASSIMP scene data
+        float scale = 1.0f;
+        
+        // Iterate through all meshes in the file and extract the vertex components
+        uint32_t numMeshes = scene->mNumMeshes;
+        mGeometry.resize(numMeshes);
+        uint32_t indexBase = 0;
+        for (uint32_t m = 0; m < numMeshes; ++m)
+        {
+          std::vector<Vertex> vertexBuffer;
+          std::vector<uint32_t> indexBuffer;
 
-			if (!err.empty())
-			{
-				if (ret)
-				{
-					warningLog(err);
-				}
-				else
-				{
-					debugLog(err);
-					return false;
-				}
-			}
+          for (uint32_t v = 0; v < scene->mMeshes[m]->mNumVertices; ++v)
+          {
+            Vertex vertex;
 
-			if (ret)
-			{
-				// Loop over shapes
-				mGeometry.resize(1);
-				std::map< std::string, size_t > vertexBufferMap;
-				std::vector< Vertex > vertexBuffer;
-				std::vector< uint32_t > indexBuffer;
-				for (size_t s = 0; s < shapes.size(); s++)
-				{
-					
+            // Use glm make_* functions to convert ASSIMP vectors to glm vectors
+            vertex.position = glm::make_vec3(&scene->mMeshes[m]->mVertices[v].x) * scale;
+            vertex.normal = glm::make_vec3(&scene->mMeshes[m]->mNormals[v].x);
 
-					// Loop over faces(polygon)
-					size_t index_offset = 0;
-					for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
-					{
-						int fv = shapes[s].mesh.num_face_vertices[f];
+            if(scene->mMeshes[m]->HasTextureCoords(v) )
+            {
+              // Texture coordinates and colors may have multiple channels, we only use the first [0] one
+              vertex.uv = glm::make_vec2(&scene->mMeshes[m]->mTextureCoords[0][v].x);
+            }
+            
 
-						// Loop over vertices in the face.
-						for (size_t v = 0; v < fv; v++)
-						{
-							std::stringstream stream;
-							
-							// access to vertex
-							tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-							tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
-							tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
-							tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
-							tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
-							tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
-							tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
-							tinyobj::real_t tx = attrib.texcoords[2 * idx.texcoord_index + 0];
-							tinyobj::real_t ty = attrib.texcoords[2 * idx.texcoord_index + 1];
+            // Vulkan uses a right-handed NDC (contrary to OpenGL), so simply flip Y-Axis
+            vertex.position.y *= -1.0f;
 
-							stream << vx << " " << vy << " " << vz << " ";
-							stream << nx << " " << ny << " " << nz << " ";
-							stream << tx << " " << ty;
+            vertexBuffer.push_back(vertex);
+          }
 
-							Vertex vertex = {};
-							vertex.position = glm::vec3(vx, vy, vz);
-							vertex.normal = glm::vec3(nx, ny, nz);
-							vertex.uv = glm::vec2(tx, ty);
+          for (uint32_t f = 0; f < scene->mMeshes[m]->mNumFaces; f++)
+          {
+            // We assume that all faces are triangulated
+            for (uint32_t i = 0; i < 3; i++)
+            {
+              indexBuffer.push_back(scene->mMeshes[m]->mFaces[f].mIndices[i] + indexBase);
+            }
+          }
 
-							std::map< std::string, size_t >::iterator it = vertexBufferMap.find(stream.str());
-							if (it == vertexBufferMap.end())
-							{
-								vertexBufferMap[stream.str()] = vertexBuffer.size();
-								indexBuffer.push_back(static_cast<uint32_t>(vertexBuffer.size()));
-								vertexBuffer.push_back(vertex);
-							}
-							else
-							{
-								const size_t& idx = it->second;
-								indexBuffer.push_back(static_cast<uint32_t>(it->second));
-							}
-						}
+          indexBase += static_cast<uint32_t>(indexBuffer.size());
 
-						index_offset += fv;
+          mGeometry[m]
+            .renderer(_renderer)
+            .vertices(vertexBuffer.data(), static_cast<uint32_t>(vertexBuffer.size()))
+            .indices(indexBuffer.data(), static_cast<uint32_t>(indexBuffer.size()));
+        }
 
-						// per-face material
-						shapes[s].mesh.material_ids[f];
-					}
+        return true;
+      }
 
-					
-				}
-
-				mGeometry[0]
-					.renderer(_renderer)
-					.vertices(vertexBuffer.data(), static_cast<uint32_t>(vertexBuffer.size()))
-					.indices(indexBuffer.data(), static_cast<uint32_t>(indexBuffer.size()));
-
-				return true;
-			}
-
-			return false;
-		}
-	}
+      return false;
+    }
+  }
 }

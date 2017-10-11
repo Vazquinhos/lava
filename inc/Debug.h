@@ -25,6 +25,8 @@ namespace lava
     }
 
     void setOutputMessageFunction(std::function<void(MessageSeverity, const std::string&)>);
+    void setWindowHandle(void* _hwnd);
+    bool checkError(VkResult _result, const char* _text);
     
     void debugLog(const std::string&);
     void warningLog(const std::string&);
