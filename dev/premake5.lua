@@ -21,8 +21,8 @@ workspace "lava"
       optimize "On"
 	
 project "lavaEngine"
-	--kind "WindowedApp"
-	kind "ConsoleApp"
+	kind "WindowedApp"
+	--kind "ConsoleApp"
 	
 	warnings "Extra" 
 	
@@ -34,18 +34,21 @@ project "lavaEngine"
 		"../external/vulkanhpp/",
 		"../external/glm/",
 		"../external/tinyobj/",
+		"../external/assimp/include/",
 		"../inc/",
 	}
 	
 	libdirs
 	{
 		"$(SolutionDir)lib/%{cfg.buildcfg}",
-		"../external/vulkan/bin/"
+		"../external/vulkan/bin/",
+		"../external/assimp/lib64/"
 	}
 	
 	links
 	{
 		"vulkan-1",
+		"assimp",
 	}
 
 project "shaders"
