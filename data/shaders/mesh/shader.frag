@@ -13,4 +13,5 @@ void main()
 	// range. To display it as color, bring the range into 0..1
 	// and put into red, green, blue components
     outColor = vec4(worldNormal*0.5 +0.5, 1.0);
+	//outColor = vec4(0.0,1.0,0.0, 1.0);
 }
