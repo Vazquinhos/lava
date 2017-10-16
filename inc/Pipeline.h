@@ -30,7 +30,7 @@ namespace  lava
     Pipeline() = default;
     virtual  ~Pipeline() = default;
 
-    VkDevice  device()  const { return  mRenderer->GetDevice(); }
+    VkDevice  device()  const { return deviceInstance().vulkanDevice(); }
     const  Renderer&  renderer()  const { return  *mRenderer; }
     Pipeline&         renderer(Renderer&  _renderer) { mRenderer = &_renderer;  return  *this; }
 
@@ -172,14 +172,14 @@ namespace  lava
       VkViewport  viewport = {};
       viewport.x = 0.0f;
       viewport.y = 0.0f;
-      viewport.width = (float)mRenderer->GetFrameBufferWidth();
-      viewport.height = (float)mRenderer->GetFrameBufferHeight();
+      viewport.width = (float)deviceInstance().targetExtend().width;
+      viewport.height = (float)deviceInstance().targetExtend().height;
       viewport.minDepth = 0.0f;
       viewport.maxDepth = 1.0f;
 
       VkRect2D  scissor = {};
       scissor.offset = { 0,  0 };
-      scissor.extent = VkExtent2D({ mRenderer->GetFrameBufferWidth(), mRenderer->GetFrameBufferHeight() });
+      scissor.extent = deviceInstance().targetExtend();
 
       VkPipelineViewportStateCreateInfo  viewportState = {};
       viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -188,13 +188,13 @@ namespace  lava
       viewportState.scissorCount = 1;
       viewportState.pScissors = &scissor;
 
-      VkPipelineRasterizationStateCreateInfo  rasterizer = {};
+      VkPipelineRasterizationStateCreateInfo rasterizer = {};
       rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
       rasterizer.depthClampEnable = VK_FALSE;
       rasterizer.rasterizerDiscardEnable = VK_FALSE;
       rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
       rasterizer.lineWidth = 1.0f;
-      rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+      rasterizer.cullMode = VK_CULL_MODE_NONE;
       rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
       rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -218,17 +218,13 @@ namespace  lava
       colorBlending.blendConstants[2] = 0.0f;
       colorBlending.blendConstants[3] = 0.0f;
 
-      VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo = {};
-      pipelineDepthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-      pipelineDepthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
-      pipelineDepthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
-      pipelineDepthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-      pipelineDepthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
-      pipelineDepthStencilStateCreateInfo.back.failOp = VK_STENCIL_OP_KEEP;
-      pipelineDepthStencilStateCreateInfo.back.passOp = VK_STENCIL_OP_KEEP;
-      pipelineDepthStencilStateCreateInfo.back.compareOp = VK_COMPARE_OP_ALWAYS;
-      pipelineDepthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
-      pipelineDepthStencilStateCreateInfo.front = pipelineDepthStencilStateCreateInfo.back;
+      VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+      depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+      depthStencil.depthTestEnable = VK_FALSE;
+      depthStencil.depthWriteEnable = VK_TRUE;
+      depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+      depthStencil.depthBoundsTestEnable = VK_FALSE;
+      depthStencil.stencilTestEnable = VK_FALSE;
 
       VkPipelineLayoutCreateInfo  pipelineLayoutInfo = {};
       pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -260,9 +256,9 @@ namespace  lava
       pipelineInfo.pRasterizationState = &rasterizer;
       pipelineInfo.pMultisampleState = &multisampling;
       pipelineInfo.pColorBlendState = &colorBlending;
-      pipelineInfo.pDepthStencilState = &pipelineDepthStencilStateCreateInfo;
+      pipelineInfo.pDepthStencilState = &depthStencil;
       pipelineInfo.layout = pipelineLayout;
-      pipelineInfo.renderPass = mRenderer->GetRenderPass();
+      pipelineInfo.renderPass = deviceInstance().swapChain().renderPass();
       pipelineInfo.subpass = 0;
       pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -322,45 +318,6 @@ namespace  lava
       descriptorWrite.pBufferInfo = &bufferInfo;
 
       vkUpdateDescriptorSets(device(), 1, &descriptorWrite, 0, nullptr);
-    }
-
-    uint32_t  findMemoryType(uint32_t  typeFilter, VkMemoryPropertyFlags  properties) {
-      VkPhysicalDeviceMemoryProperties  memProperties;
-      vkGetPhysicalDeviceMemoryProperties(mRenderer->GetPhysicalDevice(), &memProperties);
-
-      for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter  &  (1 << i)) && (memProperties.memoryTypes[i].propertyFlags  &  properties) == properties) {
-          return  i;
-        }
-      }
-
-      throw  std::runtime_error("failed  to  find  suitable  memory  type!");
-    }
-
-    void  createBuffer(VkDeviceSize  size, VkBufferUsageFlags  usage, VkMemoryPropertyFlags  properties, VkBuffer&  buffer, VkDeviceMemory&  bufferMemory) {
-      VkBufferCreateInfo  bufferInfo = {};
-      bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      bufferInfo.size = size;
-      bufferInfo.usage = usage;
-      bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-      if (vkCreateBuffer(device(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-        throw  std::runtime_error("failed  to  create  buffer!");
-      }
-
-      VkMemoryRequirements  memRequirements;
-      vkGetBufferMemoryRequirements(device(), buffer, &memRequirements);
-
-      VkMemoryAllocateInfo  allocInfo = {};
-      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      allocInfo.allocationSize = memRequirements.size;
-      allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-      if (vkAllocateMemory(device(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-        throw  std::runtime_error("failed  to  allocate  buffer  memory!");
-      }
-
-      vkBindBufferMemory(device(), buffer, bufferMemory, 0);
     }
 
     VkPipeline                    mPipeline = VK_NULL_HANDLE;

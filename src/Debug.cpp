@@ -85,6 +85,25 @@ namespace lava
       return ignoreNextErrors;
     }
 
+	bool checkAssert(bool _condition, const char* _text)
+	{
+		bool ignoreNextAsserts = false;
+		if (!_condition)
+		{
+			switch (MessageBox(sWindowHandle, "ASSERT", _text, MB_ABORTRETRYIGNORE))
+			{
+			case IDABORT: //Abort
+				DebugBreak();
+				break;
+			case IDIGNORE:
+				ignoreNextAsserts = true;
+			}
+		}
+
+		errorLog(_text);
+		return ignoreNextAsserts;
+	}
+
     void setOutputMessageFunction(std::function<void(MessageSeverity, const std::string&)> _fnc )
     {
         sOutputMessageFunction = _fnc;

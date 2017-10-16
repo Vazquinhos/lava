@@ -33,6 +33,7 @@
 #include "Debug.h"
 
 #define  vkCall(x) { static bool ignoreNextErrors = false; if( !ignoreNextErrors ) { ignoreNextErrors = checkError(x, #x); } }
+#define  lavaAssert(x, msg) { static bool ignoreNextAsserts = false; if( !ignoreNextAsserts ) { ignoreNextAsserts = checkAssert(x, msg); } }
 
 #else
 
@@ -80,4 +81,9 @@ namespace lava
 	{
 		return VertexFlags( static_cast<VertexFlags>( static_cast<uint32_t>(bit0) | static_cast<uint32_t>(bit1) ) );
 	}
+  
+  class Device;
+	Device& deviceInstance();
+	void createDevice();
+	void destroyDevice();
 }

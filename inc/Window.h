@@ -7,13 +7,15 @@ namespace lava
     class Window
     {
     public:
-        Window(const std::string& _title, const int _width, const int _height);
+        Window(const std::string& _title, const uint32_t _width, const uint32_t _height);
         virtual ~Window();
 
         HWND GetHWND() const
         {
             return mHwnd;
         }
+
+        VkExtent2D size() const { return VkExtent2D({ mWidth, mHeight }); };
 
         bool IsClosed() const
         {
@@ -38,9 +40,9 @@ namespace lava
         void Update();
 
     protected:
-        HWND mHwnd = 0;
+        HWND mHwnd = nullptr;
         bool mIsClosed = false;
-        int  mWidth = -1, mHeight = -1;
+        uint32_t  mWidth = 800, mHeight = 600;
         const std::string mTitle = "LavaWindow";
 
         Window(const Window&) = delete;

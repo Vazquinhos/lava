@@ -20,7 +20,7 @@ namespace
 
 namespace lava
 {
-  Window::Window(const std::string& _title, const int _width, const int _height)
+  Window::Window(const std::string& _title, const uint32_t _width, const uint32_t _height)
     : mWidth(_width)
     , mHeight(_height)
     , mTitle(_title)

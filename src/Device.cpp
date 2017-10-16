@@ -4,17 +4,34 @@
 
 namespace lava
 {
-  namespace
-  {
-    const std::vector<const char*> validationLayers = {
-      "VK_LAYER_LUNARG_standard_validation",
-      "VK_LAYER_RENDERDOC_Capture",
-    };
+	namespace
+	{
+		const std::vector<const char*> validationLayers = {
+			"VK_LAYER_LUNARG_standard_validation",
+			"VK_LAYER_RENDERDOC_Capture",
+		};
 
-    const std::vector<const char*> deviceExtensions = {
-      VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-  }
+		const std::vector<const char*> deviceExtensions = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		};
+		
+		static Device sDevice;
+	}
+
+	Device& deviceInstance()
+	{
+		return sDevice;
+	}
+
+	void createDevice()
+	{
+		sDevice.create();
+	}
+
+	void destroyDevice()
+	{
+		sDevice.destroy();
+	}
 
   Device& Device::create()
   {
@@ -22,6 +39,10 @@ namespace lava
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
+    createCommandPool();
+    swpChain.windowSize(windowSize).create();
+    createCommandBuffers();
+    createSemaphores();
     return *this;
   }
 
@@ -46,7 +67,7 @@ namespace lava
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface" };
+    std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_KHR_swapchain" };
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -189,10 +210,10 @@ namespace lava
 
   void Device::createLogicalDevice()
   {
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+    queueFamilyIndices = findQueueFamilies(physicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<int> uniqueQueueFamilies = { indices.graphicsFamily, indices.presentFamily };
+    std::set<int> uniqueQueueFamilies = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
 
     float queuePriority = 1.0f;
     for (int queueFamily : uniqueQueueFamilies)
@@ -231,8 +252,85 @@ namespace lava
 
     vkCall(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device));
       
-    vkGetDeviceQueue(device, indices.graphicsFamily, 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily, 0, &presentQueue);
+    vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamily, 0, &graphicsQueue);
+    vkGetDeviceQueue(device, queueFamilyIndices.presentFamily, 0, &presentQueue);
   }
 
+  uint32_t  Device::findMemoryType(uint32_t  typeFilter, VkMemoryPropertyFlags  properties)
+  {
+	  VkPhysicalDeviceMemoryProperties  memProperties;
+	  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+	  for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
+	  {
+		  if ((typeFilter  &  (1 << i)) && (memProperties.memoryTypes[i].propertyFlags  &  properties) == properties)
+			  return  i;
+	  }
+
+	  lavaAssert(false, "failed  to  find  suitable  memory  type!");
+	  return 0;
+  }
+
+  uint32_t Device::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32 *memTypeFound )
+  {
+    VkPhysicalDeviceMemoryProperties  memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+      if ((typeBits & 1) == 1)
+      {
+        if ((memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+          if (memTypeFound)
+          {
+            *memTypeFound = true;
+          }
+          return i;
+        }
+      }
+      typeBits >>= 1;
+    }
+
+    if (memTypeFound)
+    {
+      *memTypeFound = false;
+      return 0;
+    }
+    else
+    {
+      throw std::runtime_error("Could not find a matching memory type");
+    }
+  }
+
+  void Device::createCommandPool()
+  {
+    queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+
+    vkCall(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
+  }
+
+  void Device::createSemaphores()
+  {
+    VkSemaphoreCreateInfo semaphoreInfo = {};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    vkCall(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore));
+    vkCall(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore));
+  }
+
+  void Device::createCommandBuffers()
+  {
+    commandBuffers.resize(swpChain.frameBuffers().size());
+
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+
+    vkCall(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()));
+  }
 }

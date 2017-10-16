@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #include "Renderer.h"
 #include "Debug.h"
 #include <iostream>
@@ -9,12 +9,15 @@
 #include "Shader.h"
 #include "Technique.h"
 #include "io\Mesh.h"
+#include "lava.h"
+#include "Device.h"
 
 namespace
 {
   struct Vertex
   {
     float position[3];
+    float normal[3];
     float uv[2];
   };
 
@@ -35,24 +38,26 @@ INT WinMain(HINSTANCE,HINSTANCE,PSTR,INT )
         OutputDebugStringA(fullMsg.c_str());
       }
     )
-    .createWindow(300,300)
+    .createWindow(800,600)
     .renderingFunction
     (
       [](VkCommandBuffer commandBuffer)
       {
         pipeline.Bind(commandBuffer);
-        //triangle.bind(commandBuffer);
-        for (size_t i = 0; i < mesh.mGeometry.size(); ++i)
+        triangle.bind(commandBuffer);
+        triangle.drawIndexed(commandBuffer);
+
+        /*for (size_t i = 0; i < mesh.mGeometry.size(); ++i)
         {
           mesh.mGeometry[i].bind(commandBuffer);
           mesh.mGeometry[i].drawIndexed(commandBuffer);
-        }
+        }*/
       }
     )
     .Create();
 
-  lava::Shader triangleVs(lavaRenderer.GetDevice(), VK_SHADER_STAGE_VERTEX_BIT, "shaders/mesh/vert.spv");
-  lava::Shader triangleFs(lavaRenderer.GetDevice(), VK_SHADER_STAGE_FRAGMENT_BIT, "shaders/mesh/frag.spv");
+  lava::Shader triangleVs(lava::deviceInstance().vulkanDevice() , VK_SHADER_STAGE_VERTEX_BIT, "shaders/ubo/vert.spv");
+  lava::Shader triangleFs(lava::deviceInstance().vulkanDevice() , VK_SHADER_STAGE_FRAGMENT_BIT, "shaders/ubo/frag.spv");
 
   lava::Technique triangleTechnique;
   triangleTechnique
@@ -60,16 +65,33 @@ INT WinMain(HINSTANCE,HINSTANCE,PSTR,INT )
     .shader(VK_SHADER_STAGE_FRAGMENT_BIT, &triangleFs);
 
   pipeline
-	  .renderer(lavaRenderer)
-	  .flags(lava::VertexFlags::ePosition | lava::VertexFlags::eNormal | lava::VertexFlags::eTangent | lava::VertexFlags::eBinormal | lava::VertexFlags::eUv)
-	  .technique(&triangleTechnique)
-	  .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-	  .viewport(lava::Viewport(VkOffset2D({ 0,0 }), { lavaRenderer.GetFrameBufferWidth(), lavaRenderer.GetFrameBufferHeight() }));
+    .renderer(lavaRenderer)
+    .flags(lava::VertexFlags::ePosition | lava::VertexFlags::eNormal | lava::VertexFlags::eUv)
+    .technique(&triangleTechnique)
+    .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
   pipeline.Create();
 
-  mesh.Load("meshes/dragon.obj", lavaRenderer);
+  //mesh.Load("meshes/bunny.obj", lavaRenderer);
 
+  std::vector<Vertex> vertices = {
+    { { -0.5f, -0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
+    { { 0.5f, -0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 1.0f, 0.0f } },
+    { { 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 1.0f, 1.0f } },
+    { { -0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 1.0f } },
+
+    { { -0.5f, -1.5f, -1.5f },{ 1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f } },
+    { { 0.5f, -1.5f, -1.5f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
+    { { 0.5f, 1.5f, -1.5f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f } },
+    { { -0.5f, 1.5f, -1.5f },{ 1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f } }
+  };
+
+  std::vector<uint32_t> indices = {
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4
+  };
+
+  /*
   Vertex vertices[8] =
   {
 	  // front
@@ -105,15 +127,16 @@ INT WinMain(HINSTANCE,HINSTANCE,PSTR,INT )
 	  3, 2, 6,
 	  6, 7, 3,
   };
+  */
 
   triangle
 	  .renderer(lavaRenderer)
-	  .vertices(vertices, 8)
-	  .indices(indices, 36);
+	  .vertices(vertices.data(), vertices.size())
+	  .indices(indices.data(), indices.size());
 
   lavaRenderer.Run();
 
-  triangle.destroy();
+  //triangle.destroy();
   return 0;
 }
 #endif
