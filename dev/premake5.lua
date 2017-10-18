@@ -19,7 +19,31 @@ workspace "lava"
       defines { "NO_DEBUG" }
 	  rtti ("off")
       optimize "On"
+
+group "tools"
+project "meshc"
+	kind "ConsoleApp"
+	warnings "Extra" 
+	files { "../tools/meshc/**.cpp", "../tools/meshc/**.h" }
+
+	includedirs
+	{
+		"../tools/meshc/**.cpp",
+		"../external/assimp/include/"
+	}
 	
+	libdirs
+	{
+		"$(SolutionDir)lib/%{cfg.buildcfg}",
+		"../external/assimp/lib64/"
+	}
+	
+	links
+	{
+		"assimp",
+	}
+
+group "app"
 project "lavaEngine"
 	kind "WindowedApp"
 	--kind "ConsoleApp"
@@ -51,6 +75,7 @@ project "lavaEngine"
 		"assimp",
 	}
 
+group "resources"
 project "shaders"
 	kind "StaticLib"
 	files {"../data/**.frag", "../data/**.vert"}

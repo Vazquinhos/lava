@@ -28,8 +28,8 @@
 #include "tiny_obj_loader.h"
 
 
-const int WIDTH = 800;
-const int HEIGHT = 600;
+const int WIDTH = 300;
+const int HEIGHT = 250;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -176,27 +176,15 @@ struct UniformBufferObject {
   glm::mat4 proj;
 };
 
-std::vector<DebugVertex> debugVertices
-{
-  {glm::vec3(0,0,0), glm::vec3(1,0,0)},
-  {glm::vec3(1,0,0), glm::vec3(1,0,0)},
+std::vector<DebugVertex> debugVertices;
 
-  {glm::vec3(0,1,0), glm::vec3(0,1,0)},
-  {glm::vec3(0,0,0), glm::vec3(0,1,0)}, 
-
-  {glm::vec3(0,0,0), glm::vec3(0,1,1)},
-  {glm::vec3(0,0,1), glm::vec3(0,1,1)},
-};
-
-std::vector<uint32_t> debugIndices
-{
-  0,1,2,3,4,5
-};
+std::vector<uint32_t> debugIndices;
 
 std::vector<Vertex> vertices;
 std::vector<uint32_t> indices;
-glm::vec3 min(std::numeric_limits<float>::max());
-glm::vec3 max(std::numeric_limits<float>::min());
+
+#include "AABB.h"
+lava::AABB meshAABB;
 
 namespace
 {
@@ -220,16 +208,16 @@ namespace
     debugVertices.push_back(DebugVertex({ glm::vec3(0,0,_size), glm::vec3(0,1,1) }));
   }
 
-  void aabb(glm::vec3 _min, glm::vec3 _max)
+  void aabb(const lava::AABB& _aabb)
   {
-    //Top Quad
     uint32_t idx = static_cast<uint32_t>(debugVertices.size());
 
-    debugVertices.push_back(DebugVertex({ _max, glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_min.x, _max.y, _max.z), glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(min.x, _min.y, _max.z), glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_max.x, _min.y, _max.z), glm::vec3(1,1,0) }));
+    const std::vector< glm::vec3 > corners = _aabb.corners();
 
+    for( const glm::vec3& corner : corners )
+      debugVertices.push_back(DebugVertex({ corner, glm::vec3(1,1,0) }));
+
+    //Top Quad
     debugIndices.push_back(idx);
     debugIndices.push_back(idx+1);
 
@@ -243,11 +231,6 @@ namespace
     debugIndices.push_back(idx);
 
     //Bottom Quad
-    debugVertices.push_back(DebugVertex({ _min, glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_max.x, _min.y, _min.z), glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_max.x, _max.y, _min.z), glm::vec3(1,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_min.x, _max.y, _min.z), glm::vec3(1,1,0) }));
-    
     debugIndices.push_back(idx + 4);
     debugIndices.push_back(idx + 5);
 
@@ -276,7 +259,7 @@ namespace
 
   void grid(uint32_t _size, uint32_t _steps)
   {
-    float halfSize = _size * 0.5;
+    float halfSize = _size * 0.5f;
     float stepDistance = _size / static_cast<float>(_steps);
 
     float x = -halfSize;
@@ -347,6 +330,8 @@ private:
     VkPipeline pipeline;
   }
   debug;
+
+  std::vector<VkFence> fences;
   
   VkCommandPool commandPool;
 
@@ -386,28 +371,61 @@ private:
 
   void initMesh()
   {
-    std::string inputfile = "meshes/bunny.obj";
-    int option = 4;
+    std::string inputfile = "compiled/";
+    int option = 5;
     float scale = 1.0f;
     switch (option)
     {
     case 1:
-      inputfile = "meshes/cube.obj";
+      inputfile = +"meshes/cube.obj";
       break;
     case 2:
-      inputfile = "meshes/sphere.obj";
+      inputfile += "meshes/sphere.obj";
       scale = 0.05f;
       break;
     case 3:
-      inputfile = "meshes/cylinder.obj";
+      inputfile += "meshes/mitsuba-sphere.obj";
       scale = 1.0f;
       break;
     case 4:
-      inputfile = "meshes/head.obj";
+      inputfile += "meshes/head.obj";
       scale = 2.0f;
+      break;
+    case 5:
+      inputfile += "meshes/bunny.obj";
+      scale = 1.0f;
       break;
     }
 
+    std::FILE* lMeshFile = 0;
+    fopen_s(&lMeshFile, inputfile.c_str(), "rb");
+
+    uint32_t numMeshes = 0;
+    std::fread(&numMeshes, sizeof(uint32_t), 1, lMeshFile);
+
+    for (uint32_t i = 0; i < numMeshes; ++i)
+    {
+      uint32_t numVertices = 0;
+      std::fread(&numVertices, sizeof(uint32_t), 1, lMeshFile);
+      vertices.resize(numVertices);
+
+      std::fread(vertices.data(), sizeof(Vertex), numVertices, lMeshFile);
+
+      uint32_t numIndices = 0;
+      std::fread(&numIndices, sizeof(uint32_t), 1, lMeshFile);
+      indices.resize(numIndices);
+
+      std::fread(indices.data(), sizeof(uint32_t), numIndices, lMeshFile);
+    }
+
+    glm::vec3 min,max;
+    std::fread(&min, sizeof(float), 3, lMeshFile);
+    std::fread(&max, sizeof(float), 3, lMeshFile);
+
+    meshAABB.create(min, max);
+
+
+    /*
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -418,6 +436,9 @@ private:
     }
 
     std::unordered_map<std::string, uint32_t> uniqueVertices = {};
+
+    glm::vec3 min(std::numeric_limits<float>::max());
+    glm::vec3 max(std::numeric_limits<float>::min());
 
     for (const auto& shape : shapes) {
       for (const auto& index : shape.mesh.indices) {
@@ -467,11 +488,8 @@ private:
           indices.push_back(it->second);
         }
       }
-
-
     }
-
-    
+    */
   }
 
   void initVulkan()
@@ -502,8 +520,7 @@ private:
     createVertexBuffer();
     createIndexBuffer();
 
-    aabb(min, max);
-    grid(10, 20);
+    aabb(meshAABB);
     createDebugVertexBuffer();
     createDebugIndexBuffer();
 
@@ -515,6 +532,7 @@ private:
     createDescriptorPool();
     createDescriptorSet();
 
+    createFences();
     createCommandBuffers();
     createSemaphores();
   }
@@ -523,11 +541,30 @@ private:
     while (!window->IsClosed()) {
       window->Update();
 
-      updateUniformBuffer();
+      //updateDebugBuffers();
+      //updateBuffers();
       drawFrame();
     }
 
     vkDeviceWaitIdle(device);
+  }
+
+  void createFences()
+  {
+    VkFenceCreateInfo fenceCreateInfo = {};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    // We need this so we can wait for them on the first try
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    fences.resize(swapChainFramebuffers.size());
+
+    for (size_t i = 0; i < fences.size(); i++)
+    {
+      if (vkCreateFence(device, &fenceCreateInfo, nullptr, &fences[i]) != VK_SUCCESS)
+        throw std::runtime_error("Error creating fence");
+    }
+
+    vkResetFences(device, static_cast<uint32_t>(fences.size()), fences.data());
   }
 
   void cleanupSwapChain() {
@@ -554,6 +591,10 @@ private:
 
   void cleanup() {
     cleanupSwapChain();
+    
+    vkWaitForFences(device, static_cast<uint32_t>(fences.size()), fences.data(), VK_TRUE, UINT64_MAX);
+    for (size_t i = 0; i < fences.size(); i++)
+      vkDestroyFence(device, fences[i], nullptr);
 
     vkDestroySampler(device, textureSampler, nullptr);
     vkDestroyImageView(device, textureImageView, nullptr);
@@ -957,7 +998,7 @@ private:
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -1223,7 +1264,7 @@ private:
 
   void createTextureImage() {
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("textures/lambertian.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load("textures/uvchecker.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
@@ -1434,7 +1475,8 @@ private:
     memcpy(data, debugVertices.data(), (size_t)bufferSize);
     vkUnmapMemory(device, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, debugVertexBuffer, debugVertexBufferMemory);
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, debugVertexBuffer, debugVertexBufferMemory);
+    //createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, debugVertexBuffer, debugVertexBufferMemory);
 
     copyBuffer(stagingBuffer, debugVertexBuffer, bufferSize);
 
@@ -1767,6 +1809,14 @@ private:
       if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
       }
+
+      VkSubmitInfo submitInfo = {};
+      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submitInfo.commandBufferCount = 1;
+      submitInfo.pCommandBuffers = &commandBuffers[0];
+      VkResult r = vkQueueSubmit(graphicsQueue, 1, &submitInfo, fences[i]);
+      if (r != VK_SUCCESS)
+        throw std::runtime_error("failed to submit que for fences");
     }
   }
 
@@ -1781,7 +1831,8 @@ private:
     }
   }
 
-  void updateUniformBuffer() {
+  void updateBuffers()
+  {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -1789,7 +1840,7 @@ private:
 
     UniformBufferObject ubo = {};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(5.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100000.0f);
     ubo.proj[1][1] *= -1;
 
@@ -1797,6 +1848,25 @@ private:
     vkMapMemory(device, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(device, uniformBufferMemory);
+
+    lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
+
+    debugVertices.clear();
+    aabb(transformedAABB);
+
+    // Recalculate the min, max
+    /*
+    std::vector<DebugVertex> frameVertices;
+    for (DebugVertex& vertex : debugVertices)
+    {
+      frameVertices.push_back(DebugVertex({ glm::vec3(ubo.model * glm::vec4(vertex.pos, 1)), vertex.color}));
+    }
+    */
+
+    data = nullptr;
+    vkMapMemory(device, debugVertexBufferMemory, 0, sizeof(DebugVertex)* debugVertices.size(), 0, &data);
+    memcpy(data, debugVertices.data(), sizeof(DebugVertex)* debugVertices.size());
+    vkUnmapMemory(device, debugVertexBufferMemory);
   }
 
   void drawFrame() {
@@ -1810,6 +1880,11 @@ private:
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       throw std::runtime_error("failed to acquire swap chain image!");
     }
+
+    vkWaitForFences(device, 1, &fences[imageIndex], VK_TRUE,UINT64_MAX);
+    vkResetFences(device, 1, &fences[imageIndex]);
+
+    updateBuffers();
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1827,7 +1902,7 @@ private:
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, fences[imageIndex]) != VK_SUCCESS) {
       throw std::runtime_error("failed to submit draw command buffer!");
     }
 
