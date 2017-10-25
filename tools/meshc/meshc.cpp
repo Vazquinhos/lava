@@ -35,6 +35,8 @@ void compileMesh(const std::string& _meshPath)
     aiProcess_GenSmoothNormals |
     aiProcess_Triangulate |
     aiProcess_JoinIdenticalVertices |
+    aiProcess_OptimizeMeshes |
+    aiProcess_OptimizeGraph |
     aiProcess_FlipUVs);
 
   if (scene)
@@ -47,6 +49,8 @@ void compileMesh(const std::string& _meshPath)
     aiVector3D max( -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity() , -std::numeric_limits<float>::infinity() );
 
     std::fwrite(&scene->mNumMeshes, sizeof(uint32_t), 1, lMeshFile);
+
+    std::cout << "[" << __TIME__ << "]\tNumber of meshes: " << scene->mNumMeshes << std::endl;
 
     for (uint32_t m = 0; m < scene->mNumMeshes; ++m)
     {
@@ -98,6 +102,8 @@ void compileMesh(const std::string& _meshPath)
       uint32_t numIndices = static_cast<uint32_t>(indexBuffer.size());
       std::fwrite(&numIndices, sizeof(uint32_t), 1, lMeshFile);
       std::fwrite(indexBuffer.data(), sizeof(uint32_t), numIndices, lMeshFile);
+
+      std::cout << "[" << __TIME__ << "]\t" << "[" << m << "]Vertices: " << numVertices << " Indices: " << numIndices << std::endl;
     }
 
     std::fwrite(&min.x, sizeof(float), 3, lMeshFile);
@@ -123,7 +129,7 @@ int main(int argc, char* argv[])
   fs::create_directories("compiled/meshes/");
   for (auto & p : fs::directory_iterator(argv[2]))
   {
-    std::cout << "[" << __TIME__ << "]Compiling: " << p << std::endl;
+    std::cout << std::endl << "[" << __TIME__ << "]Compiling: " << p << std::endl;
     std::ostringstream oss;
     oss << p;
     compileMesh(oss.str());

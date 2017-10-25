@@ -1,8 +1,8 @@
+/* Copyright (C) 2017 Alejandro Vazquez vazquinhos@gmail.com */
+
 #pragma once
 
 #include "lava.h"
-#include "Debug.h"
-#include "Renderer.h"
 
 namespace lava
 {
@@ -40,6 +40,8 @@ namespace lava
     }
 
     const std::vector< glm::vec3 >& corners() const { return mCorners; }
+    const glm::vec3& min() const { return mMin; }
+    const glm::vec3& max() const { return mMax; }
 
   private:
     glm::vec3 mMin = glm::vec3(std::numeric_limits<float>::max());

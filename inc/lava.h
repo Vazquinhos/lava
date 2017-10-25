@@ -8,8 +8,14 @@
 #include <memory>
 #include <functional>
 #include <string>
-#include <fstream>      // std::ifstream
 #include <ios>
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <array>
 
 #include <Windows.h>
 
@@ -24,13 +30,12 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
-
 #pragma warning( pop ) 
 
 
-#ifdef _DEBUG
+#include "debug/Debug.h"
 
-#include "Debug.h"
+#ifdef _DEBUG
 
 #define  vkCall(x) { static bool ignoreNextErrors = false; if( !ignoreNextErrors ) { ignoreNextErrors = checkError(x, #x); } }
 #define  lavaAssert(x, msg) { static bool ignoreNextAsserts = false; if( !ignoreNextAsserts ) { ignoreNextAsserts = checkAssert(x, msg); } }
@@ -38,52 +43,64 @@
 #else
 
 #define  vkCall(x) x;
+#define  lavaAssert(x, msg) {}
 
 #endif
 
 namespace lava
 {
-    static const int sQueueSlotCount = 3;
-    struct MemoryTypeInfo
+  static const int sQueueSlotCount = 3;
+  struct MemoryTypeInfo
+  {
+    bool deviceLocal = false;
+    bool hostVisible = false;
+    bool hostCoherent = false;
+    bool hostCached = false;
+    bool lazilyAllocated = false;
+
+    struct Heap
     {
+      uint64_t size = 0;
       bool deviceLocal = false;
-      bool hostVisible = false;
-      bool hostCoherent = false;
-      bool hostCached = false;
-      bool lazilyAllocated = false;
-
-      struct Heap
-      {
-        uint64_t size = 0;
-        bool deviceLocal = false;
-      };
-
-      Heap heap;
-      int index;
     };
 
-    template <typename T>
-    T RoundToNextMultiple(const T a, const T multiple)
-    {
-      return ((a + multiple - 1) / multiple) * multiple;
-    }
+    Heap heap;
+    int index;
+  };
 
-	enum VertexFlags
-	{
-		ePosition = 0x00000001,
-		eNormal = 0x00000002,
-		eTangent = 0x00000004,
-		eBinormal = 0x00000008,
-		eUv = 0x00000010,
-	};
+  template <typename T>
+  T RoundToNextMultiple(const T a, const T multiple)
+  {
+    return ((a + multiple - 1) / multiple) * multiple;
+  }
 
-	VULKAN_HPP_INLINE VertexFlags operator|(VertexFlags bit0, VertexFlags bit1)
-	{
-		return VertexFlags( static_cast<VertexFlags>( static_cast<uint32_t>(bit0) | static_cast<uint32_t>(bit1) ) );
-	}
-  
+  enum CameraMode
+  {
+    ePerspective = 1,
+    eOrthografic
+  };
+
+  enum VertexFlags
+  {
+    ePosition = 0x00000001,
+    eNormal = 0x00000002,
+    eTangent = 0x00000004,
+    eBinormal = 0x00000008,
+    eUv = 0x00000010,
+  };
+
+  VULKAN_HPP_INLINE VertexFlags operator|(VertexFlags bit0, VertexFlags bit1)
+  {
+    return VertexFlags(static_cast<VertexFlags>(static_cast<uint32_t>(bit0) | static_cast<uint32_t>(bit1)));
+  }
+
   class Device;
-	Device& deviceInstance();
-	void createDevice();
-	void destroyDevice();
+  Device& deviceInstance();
+  void createDevice();
+  void destroyDevice();
+
+  VkCommandBuffer beginSingleTimeCommands(VkDevice _device, VkCommandPool _cmdPool);
+  void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue);
+  void copyBuffer(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void copyBufferToImage(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 }

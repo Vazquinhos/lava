@@ -1,42 +1,21 @@
 #if 1
 #include "lava.h"
-#include "Window.h"
+#include "render/Window.h"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "render/Buffer.h"
+#include "geom/Geometry.h"
+#include "textures/Samplers.h"
+#include "textures/Texture.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
-#include <algorithm>
-#include <chrono>
-#include <vector>
-#include <cstring>
-#include <array>
-#include <set>
-
-#include <assimp/Importer.hpp>      // C++ importer interface
-#include <assimp/scene.h>           // Output data structure
-#include <assimp/postprocess.h>     // Post processing flags
-
-#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
-#include "tiny_obj_loader.h"
-
-
-const int WIDTH = 300;
-const int HEIGHT = 250;
+const int WIDTH = 500;
+const int HEIGHT = 300;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
 };
 
 const std::vector<const char*> deviceExtensions = {
-  VK_KHR_SWAPCHAIN_EXTENSION_NAME
+  VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
 #ifdef NDEBUG
@@ -77,114 +56,24 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
-struct Vertex
-{
-  glm::vec3 pos;
-  glm::vec3 normal;
-  glm::vec2 texCoord;
-
-  static VkVertexInputBindingDescription getBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription = {};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-  }
-
-  static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions = {};
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Vertex, normal);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-
-    return attributeDescriptions;
-  }
-
-  bool operator==(const Vertex& other) const {
-    return pos == other.pos && normal == other.normal && texCoord == other.texCoord;
-  }
-
-  std::string to_string() const
-  {
-    std::stringstream stream;
-    stream << pos.x << " " << pos.y << " " << pos.z << " ";
-    stream << normal.x << " " << normal.y << " " << normal.z << " ";
-    stream << texCoord.x << " " << texCoord.y;
-    return stream.str();
-  }
-};
-
-struct DebugVertex
-{
-  glm::vec3 pos;
-  glm::vec3 color;
-
-  static VkVertexInputBindingDescription getBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription = {};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(DebugVertex);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-  }
-
-  static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(DebugVertex, pos);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(DebugVertex, color);
-
-    return attributeDescriptions;
-  }
-
-  bool operator==(const DebugVertex& other) const {
-    return pos == other.pos && color == other.color;
-  }
-
-  std::string to_string() const
-  {
-    std::stringstream stream;
-    stream << pos.x << " " << pos.y << " " << pos.z << " ";
-    stream << color.r << " " << color.g << " " << color.b << " ";
-    return stream.str();
-  }
-};
-
 struct UniformBufferObject {
   glm::mat4 model;
   glm::mat4 view;
   glm::mat4 proj;
 };
 
-std::vector<DebugVertex> debugVertices;
+#include "geom/Vertex.h"
+#include "visuals/VisualMesh.h"
+
+std::vector<lava::DebugVertex> debugVertices;
 
 std::vector<uint32_t> debugIndices;
 
-std::vector<Vertex> vertices;
-std::vector<uint32_t> indices;
-
-#include "AABB.h"
+#include "geom/AABB.h"
 lava::AABB meshAABB;
+
+#include "graphics/Camera.h"
+lava::Camera camera;
 
 namespace
 {
@@ -200,12 +89,12 @@ namespace
     debugIndices.push_back(idx + 2);
     debugIndices.push_back(idx + 3);
 
-    debugVertices.push_back(DebugVertex({ glm::vec3(0,0,0), glm::vec3(1,0,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(_size,0,0), glm::vec3(1,0,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(0,_size,0), glm::vec3(0,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,0) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,1) }));
-    debugVertices.push_back(DebugVertex({ glm::vec3(0,0,_size), glm::vec3(0,1,1) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(1,0,0) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(_size,0,0), glm::vec3(1,0,0) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,_size,0), glm::vec3(0,1,0) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,0) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,1) }));
+    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,_size), glm::vec3(0,1,1) }));
   }
 
   void aabb(const lava::AABB& _aabb)
@@ -215,7 +104,7 @@ namespace
     const std::vector< glm::vec3 > corners = _aabb.corners();
 
     for( const glm::vec3& corner : corners )
-      debugVertices.push_back(DebugVertex({ corner, glm::vec3(1,1,0) }));
+      debugVertices.push_back(lava::DebugVertex({ corner, glm::vec3(1,1,0) }));
 
     //Top Quad
     debugIndices.push_back(idx);
@@ -266,10 +155,10 @@ namespace
     while (x < halfSize)
     {
       debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(DebugVertex({ glm::vec3(x, -halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
+      debugVertices.push_back(lava::DebugVertex({ glm::vec3(x, -halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
 
       debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(DebugVertex({ glm::vec3(x, halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
+      debugVertices.push_back(lava::DebugVertex({ glm::vec3(x, halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
       x += stepDistance;
     }
 
@@ -277,19 +166,19 @@ namespace
     while (y < halfSize)
     {
       debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(DebugVertex({ glm::vec3(-halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
+      debugVertices.push_back(lava::DebugVertex({ glm::vec3(-halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
 
       debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(DebugVertex({ glm::vec3(halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
+      debugVertices.push_back(lava::DebugVertex({ glm::vec3(halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
       y += stepDistance;
     }
-
   }
 }
 
 class HelloTriangleApplication {
 public:
   void run() {
+    camera.create(glm::vec3(2.0f, 0.0, 2.0f), glm::vec3(0.0f));
     initWindow();
     initVulkan();
     mainLoop();
@@ -339,15 +228,9 @@ private:
   VkDeviceMemory depthImageMemory;
   VkImageView depthImageView;
 
-  VkImage textureImage;
-  VkDeviceMemory textureImageMemory;
-  VkImageView textureImageView;
-  VkSampler textureSampler;
+  lava::Texture texture;
 
-  VkBuffer vertexBuffer;
-  VkDeviceMemory vertexBufferMemory;
-  VkBuffer indexBuffer;
-  VkDeviceMemory indexBufferMemory;
+  lava::VisualMesh mesh;
 
   VkBuffer debugVertexBuffer;
   VkDeviceMemory debugVertexBufferMemory;
@@ -371,8 +254,8 @@ private:
 
   void initMesh()
   {
-    std::string inputfile = "compiled/";
-    int option = 5;
+    std::string inputfile;
+    int option = 1;
     float scale = 1.0f;
     switch (option)
     {
@@ -380,7 +263,7 @@ private:
       inputfile = +"meshes/cube.obj";
       break;
     case 2:
-      inputfile += "meshes/sphere.obj";
+      inputfile += "meshes/rungholt.obj";
       scale = 0.05f;
       break;
     case 3:
@@ -388,108 +271,20 @@ private:
       scale = 1.0f;
       break;
     case 4:
-      inputfile += "meshes/head.obj";
+      inputfile += "meshes/dragon.obj";
       scale = 2.0f;
       break;
     case 5:
       inputfile += "meshes/bunny.obj";
       scale = 1.0f;
       break;
+    case 6:
+      inputfile += "meshes/head.obj";
+      scale = 2.0f;
+      break;
     }
 
-    std::FILE* lMeshFile = 0;
-    fopen_s(&lMeshFile, inputfile.c_str(), "rb");
-
-    uint32_t numMeshes = 0;
-    std::fread(&numMeshes, sizeof(uint32_t), 1, lMeshFile);
-
-    for (uint32_t i = 0; i < numMeshes; ++i)
-    {
-      uint32_t numVertices = 0;
-      std::fread(&numVertices, sizeof(uint32_t), 1, lMeshFile);
-      vertices.resize(numVertices);
-
-      std::fread(vertices.data(), sizeof(Vertex), numVertices, lMeshFile);
-
-      uint32_t numIndices = 0;
-      std::fread(&numIndices, sizeof(uint32_t), 1, lMeshFile);
-      indices.resize(numIndices);
-
-      std::fread(indices.data(), sizeof(uint32_t), numIndices, lMeshFile);
-    }
-
-    glm::vec3 min,max;
-    std::fread(&min, sizeof(float), 3, lMeshFile);
-    std::fread(&max, sizeof(float), 3, lMeshFile);
-
-    meshAABB.create(min, max);
-
-
-    /*
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, inputfile.c_str())) {
-      throw std::runtime_error(err);
-    }
-
-    std::unordered_map<std::string, uint32_t> uniqueVertices = {};
-
-    glm::vec3 min(std::numeric_limits<float>::max());
-    glm::vec3 max(std::numeric_limits<float>::min());
-
-    for (const auto& shape : shapes) {
-      for (const auto& index : shape.mesh.indices) {
-        Vertex vertex = {};
-
-        vertex.pos = {
-          attrib.vertices[3 * index.vertex_index + 2] * scale,
-          attrib.vertices[3 * index.vertex_index + 0]*scale,
-          attrib.vertices[3 * index.vertex_index + 1]*scale,
-        };
-
-        if (!attrib.texcoords.empty() && index.texcoord_index > -1)
-        {
-          vertex.texCoord = {
-            attrib.texcoords[2 * index.texcoord_index + 0],
-            1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-          };
-        }
-        
-        if (!attrib.normals.empty() && index.normal_index > -1)
-        {
-          vertex.normal = {
-            attrib.normals[3 * index.normal_index + 0],
-            attrib.normals[3 * index.normal_index + 1],
-            attrib.normals[3 * index.normal_index + 2],
-          };
-        }
-
-        auto it = uniqueVertices.find(vertex.to_string());
-        if (it == uniqueVertices.end())
-        {
-          const uint32_t idx = static_cast<uint32_t>(vertices.size());
-          uniqueVertices[vertex.to_string()] = idx;
-          indices.push_back(idx);
-          vertices.push_back(vertex);
-
-          min.x = std::min(min.x, vertex.pos.x);
-          min.y = std::min(min.y, vertex.pos.y);
-          min.z = std::min(min.z, vertex.pos.z);
-
-          max.x = std::max(max.x, vertex.pos.x);
-          max.y = std::max(max.y, vertex.pos.y);
-          max.z = std::max(max.z, vertex.pos.z);
-        }
-        else
-        {
-          indices.push_back(it->second);
-        }
-      }
-    }
-    */
+    mesh.create(device, physicalDevice, commandPool, graphicsQueue, inputfile );
   }
 
   void initVulkan()
@@ -506,28 +301,27 @@ private:
     createDescriptorSetLayout();
     createGraphicsPipeline();
 
-    createDebugDescriptorSetLayout();
-    createDebugGraphicsPipeline();
+    //createDebugDescriptorSetLayout();
+    //createDebugGraphicsPipeline();
 
     createCommandPool();
     createDepthResources();
     createFramebuffers();
+
     createTextureImage();
-    createTextureImageView();
+
     createTextureSampler();
     
     initMesh();
-    createVertexBuffer();
-    createIndexBuffer();
 
-    aabb(meshAABB);
-    createDebugVertexBuffer();
-    createDebugIndexBuffer();
+    //aabb(meshAABB);
+    //createDebugVertexBuffer();
+    //createDebugIndexBuffer();
 
     createUniformBuffer();
 
-    createDebugDescriptorPool();
-    createDebugDescriptorSet();
+    //createDebugDescriptorPool();
+    //createDebugDescriptorSet();
 
     createDescriptorPool();
     createDescriptorSet();
@@ -596,24 +390,17 @@ private:
     for (size_t i = 0; i < fences.size(); i++)
       vkDestroyFence(device, fences[i], nullptr);
 
-    vkDestroySampler(device, textureSampler, nullptr);
-    vkDestroyImageView(device, textureImageView, nullptr);
-
-    vkDestroyImage(device, textureImage, nullptr);
-    vkFreeMemory(device, textureImageMemory, nullptr);
-
+    lava::Samplers::destroy(device);
+    texture.destroy(device);
+    
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
-    vkDestroyDescriptorSetLayout(device, debug.descriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    //vkDestroyDescriptorSetLayout(device, debug.descriptorSetLayout, nullptr);
+    //vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
     vkDestroyBuffer(device, uniformBuffer, nullptr);
     vkFreeMemory(device, uniformBufferMemory, nullptr);
 
-    vkDestroyBuffer(device, indexBuffer, nullptr);
-    vkFreeMemory(device, indexBufferMemory, nullptr);
-
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    mesh.destroy(device);
 
     vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
     vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
@@ -627,8 +414,6 @@ private:
 
     delete window;
   }
-
-  
 
   void recreateSwapChain() {
     vkDeviceWaitIdle(device);
@@ -661,7 +446,7 @@ private:
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface"};
+    std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface", "VK_EXT_debug_report" };
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -678,7 +463,8 @@ private:
     }
   }
 
-  void setupDebugCallback() {
+  void setupDebugCallback()
+  {
     if (!enableValidationLayers) return;
 
     VkDebugReportCallbackCreateInfoEXT createInfo = {};
@@ -959,8 +745,8 @@ private:
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto bindingDescription = lava::Vertex::getBindingDescription();
+    auto attributeDescriptions = lava::Vertex::getAttributeDescriptions();
 
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
@@ -1086,8 +872,8 @@ private:
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-    auto bindingDescription = DebugVertex::getBindingDescription();
-    auto attributeDescriptions = DebugVertex::getAttributeDescriptions();
+    auto bindingDescription = lava::DebugVertex::getBindingDescription();
+    auto attributeDescriptions = lava::DebugVertex::getAttributeDescriptions();
 
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
@@ -1263,8 +1049,19 @@ private:
   }
 
   void createTextureImage() {
+    texture.create
+    (
+      device,
+      physicalDevice,
+      commandPool,
+      graphicsQueue,
+      lava::Samplers::sLinearSampler,
+      "textures/Luffy.jpg"
+    );
+
+    /*
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("textures/uvchecker.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load("textures/default.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
@@ -1290,31 +1087,12 @@ private:
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+    */
   }
 
-  void createTextureImageView() {
-    textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-  }
-
-  void createTextureSampler() {
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = 16;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-    if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create texture sampler!");
-    }
+  void createTextureSampler()
+  {
+    lava::Samplers::create(device);
   }
 
   VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
@@ -1464,7 +1242,7 @@ private:
 
   void createDebugVertexBuffer()
   {
-    VkDeviceSize bufferSize = sizeof(DebugVertex) * debugVertices.size();
+    VkDeviceSize bufferSize = sizeof(lava::DebugVertex) * debugVertices.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -1479,26 +1257,6 @@ private:
     //createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, debugVertexBuffer, debugVertexBufferMemory);
 
     copyBuffer(stagingBuffer, debugVertexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-  }
-
-  void createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(Vertex) * vertices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -1520,26 +1278,6 @@ private:
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, debugIndexBuffer, debugIndexBufferMemory);
 
     copyBuffer(stagingBuffer, debugIndexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-  }
-
-  void createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(uint32_t) * indices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -1634,8 +1372,8 @@ private:
 
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = textureImageView;
-    imageInfo.sampler = textureSampler;
+    imageInfo.imageView = texture.textureImageView;
+    imageInfo.sampler = lava::Samplers::sPointSampler;
 
     std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 
@@ -1778,18 +1516,12 @@ private:
 
       {
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-        VkBuffer vertexBuffers[] = { vertexBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
-
-        vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
         vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-
-        vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        mesh.bind(commandBuffers[i]);
+        mesh.render(commandBuffers[i]);
       }
       
+      if(false)
       {
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, debug.pipeline);
 
@@ -1840,19 +1572,25 @@ private:
 
     UniformBufferObject ubo = {};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(5.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 100000.0f);
-    ubo.proj[1][1] *= -1;
+    //lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
+
+    //float d = glm::distance(transformedAABB.min(), transformedAABB.max());
+    //camera.eye(glm::vec3(d, 0.0f, d));
+    float d = 5.0f;
+    camera.eye(glm::vec3(d, 0.0f, d));
+
+    //camera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
+    camera.lookAt(glm::vec3(0));
+    camera.view(ubo.view);
+    camera.proj(ubo.proj);
 
     void* data;
     vkMapMemory(device, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(device, uniformBufferMemory);
 
-    lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
-
     debugVertices.clear();
-    aabb(transformedAABB);
+    //aabb(transformedAABB);
 
     // Recalculate the min, max
     /*
@@ -1861,12 +1599,12 @@ private:
     {
       frameVertices.push_back(DebugVertex({ glm::vec3(ubo.model * glm::vec4(vertex.pos, 1)), vertex.color}));
     }
-    */
+ 
 
     data = nullptr;
-    vkMapMemory(device, debugVertexBufferMemory, 0, sizeof(DebugVertex)* debugVertices.size(), 0, &data);
-    memcpy(data, debugVertices.data(), sizeof(DebugVertex)* debugVertices.size());
-    vkUnmapMemory(device, debugVertexBufferMemory);
+    vkMapMemory(device, debugVertexBufferMemory, 0, sizeof(lava::DebugVertex)* debugVertices.size(), 0, &data);
+    memcpy(data, debugVertices.data(), sizeof(lava::DebugVertex)* debugVertices.size());
+    vkUnmapMemory(device, debugVertexBufferMemory);   */
   }
 
   void drawFrame() {
@@ -2125,8 +1863,9 @@ private:
   }
 
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t obj, size_t location, int32_t code, const char* layerPrefix, const char* msg, void* userData) {
-    std::cerr << "validation layer: " << msg << std::endl;
-
+    //std::cerr << "validation layer: " << msg << std::endl;
+    OutputDebugStringA(msg);
+    OutputDebugStringA("\n");
     return VK_FALSE;
   }
 };

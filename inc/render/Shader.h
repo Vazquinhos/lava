@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lava.h"
-#include "Debug.h"
 
 namespace lava
 {
