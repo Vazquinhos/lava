@@ -8,8 +8,8 @@
 #include "textures/Texture.h"
 #include "imgui/imgui_impl.h"
 
-const int WIDTH = 500;
-const int HEIGHT = 300;
+const int WIDTH = 1270;
+const int HEIGHT = 720;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -371,6 +371,9 @@ private:
       ImGui::Text("Hello from another window!");
       ImGui::End();
 
+      static bool showTestWindow = true;
+      ImGui::ShowTestWindow(&showTestWindow);
+
       //updateDebugBuffers();
       //updateBuffers();
       drawFrame();
@@ -419,7 +422,9 @@ private:
     vkDestroySwapchainKHR(device, swapChain, nullptr);
   }
 
-  void cleanup() {
+  void cleanup()
+  {
+    lava::ImGuiShutdown();
     cleanupSwapChain();
     
     vkWaitForFences(device, static_cast<uint32_t>(fences.size()), fences.data(), VK_TRUE, UINT64_MAX);
@@ -1041,6 +1046,7 @@ private:
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
       throw std::runtime_error("failed to create graphics command pool!");

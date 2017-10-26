@@ -113,6 +113,11 @@ namespace lava
   {
     if (sOutputMessageFunction != nullptr)
       sOutputMessageFunction(MessageSeverity::eDebug, _msg);
+    else
+    {
+      OutputDebugStringA(_msg.c_str());
+      OutputDebugStringA("\n");
+    }
   }
 
   void warningLog(const std::string& _msg)

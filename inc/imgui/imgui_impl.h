@@ -36,4 +36,5 @@ namespace lava
   IMGUI_API void        ImGuiInvalidateDeviceObjects();
   IMGUI_API bool        ImGuiCreateFontsTexture(VkCommandBuffer command_buffer);
   IMGUI_API bool        ImGuiCreateDeviceObjects();
+
 }

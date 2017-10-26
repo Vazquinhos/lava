@@ -1,20 +1,79 @@
 #include "render/Window.h"
 
+#include "imgui/imgui_impl.h"
+
 namespace
 {
-  LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  static bool IsAnyMouseButtonDown()
+  {
+    ImGuiIO& io = ImGui::GetIO();
+    for (int n = 0; n < ARRAYSIZE(io.MouseDown); n++)
+      if (io.MouseDown[n])
+        return true;
+    return false;
+  }
+
+  LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
   {
     auto ptr = ::GetWindowLongPtr(hwnd, GWLP_USERDATA);
     auto window = reinterpret_cast<lava::Window*> (ptr);
 
-    switch (uMsg)
+    ImGuiIO& io = ImGui::GetIO();
+    switch (msg)
     {
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    {
+      int button = 0;
+      if (msg == WM_LBUTTONDOWN) button = 0;
+      if (msg == WM_RBUTTONDOWN) button = 1;
+      if (msg == WM_MBUTTONDOWN) button = 2;
+      if (!IsAnyMouseButtonDown() && GetCapture() == NULL)
+        SetCapture(hwnd);
+      io.MouseDown[button] = true;
+      return 0;
+    }
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONUP:
+    {
+      int button = 0;
+      if (msg == WM_LBUTTONUP) button = 0;
+      if (msg == WM_RBUTTONUP) button = 1;
+      if (msg == WM_MBUTTONUP) button = 2;
+      io.MouseDown[button] = false;
+      if (!IsAnyMouseButtonDown() && GetCapture() == hwnd)
+        ReleaseCapture();
+      return 0;
+    }
+    case WM_MOUSEWHEEL:
+      io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f;
+      return 0;
+    case WM_MOUSEMOVE:
+      io.MousePos.x = (signed short)(lParam);
+      io.MousePos.y = (signed short)(lParam >> 16);
+      return 0;
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+      if (wParam < 256)
+        io.KeysDown[wParam] = 1;
+      return 0;
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+      if (wParam < 256)
+        io.KeysDown[wParam] = 0;
+      return 0;
+    case WM_CHAR:
+      // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
+      if (wParam > 0 && wParam < 0x10000)
+        io.AddInputCharacter((unsigned short)wParam);
+      return 0;
     case WM_CLOSE:
       window->Close();
       return 0;
     }
-
-    return ::DefWindowProcA(hwnd, uMsg, wParam, lParam);
+    return ::DefWindowProcA(hwnd, msg, wParam, lParam);
   }
 }   // namespace
 

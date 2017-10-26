@@ -37,8 +37,8 @@
 
 #ifdef _DEBUG
 
-#define  vkCall(x) { static bool ignoreNextErrors = false; if( !ignoreNextErrors ) { ignoreNextErrors = checkError(x, #x); } }
-#define  lavaAssert(x, msg) { static bool ignoreNextAsserts = false; if( !ignoreNextAsserts ) { ignoreNextAsserts = checkAssert(x, msg); } }
+#define  vkCall(x) { static bool ignoreNextErrors = false; if( !ignoreNextErrors ) { ignoreNextErrors = lava::checkError(x, #x); } }
+#define  lavaAssert(x, msg) { static bool ignoreNextAsserts = false; if( !ignoreNextAsserts ) { ignoreNextAsserts = lava::checkAssert(x, msg); } }
 
 #else
 
