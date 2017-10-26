@@ -58,6 +58,7 @@ project "lavaEngine"
 		"../external/vulkanhpp/",
 		"../external/glm/",
 		"../external/tinyobj/",
+		"../external/imgui/",
 		"../external/assimp/include/",
 		"../inc/",
 	}
@@ -73,7 +74,14 @@ project "lavaEngine"
 	{
 		"vulkan-1",
 		"assimp",
+		"imgui"
 	}
+
+group "external"
+project "imgui"
+	kind "StaticLib"
+	files {"../external/imgui/**.h", "../external/imgui/**.cpp"}
+	excludes {"../external/imgui/examples/**.**", "../external/imgui/extra_fonts/**.**"}
 
 group "resources"
 project "shaders"

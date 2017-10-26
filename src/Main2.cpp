@@ -301,8 +301,8 @@ private:
     createDescriptorSetLayout();
     createGraphicsPipeline();
 
-    //createDebugDescriptorSetLayout();
-    //createDebugGraphicsPipeline();
+    createDebugDescriptorSetLayout();
+    createDebugGraphicsPipeline();
 
     createCommandPool();
     createDepthResources();
@@ -314,14 +314,16 @@ private:
     
     initMesh();
 
-    //aabb(meshAABB);
-    //createDebugVertexBuffer();
-    //createDebugIndexBuffer();
+    meshAABB.create(glm::vec3(-0.5f), glm::vec3(0.5f));
+    aabb(meshAABB);
+    //axis(2.0f);
+    createDebugVertexBuffer();
+    createDebugIndexBuffer();
 
     createUniformBuffer();
 
-    //createDebugDescriptorPool();
-    //createDebugDescriptorSet();
+    createDebugDescriptorPool();
+    createDebugDescriptorSet();
 
     createDescriptorPool();
     createDescriptorSet();
@@ -1521,7 +1523,7 @@ private:
         mesh.render(commandBuffers[i]);
       }
       
-      if(false)
+      //if(false)
       {
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, debug.pipeline);
 
@@ -1572,14 +1574,14 @@ private:
 
     UniformBufferObject ubo = {};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    //lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
+    lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
 
-    //float d = glm::distance(transformedAABB.min(), transformedAABB.max());
-    //camera.eye(glm::vec3(d, 0.0f, d));
-    float d = 5.0f;
+    float d = glm::distance(transformedAABB.min(), transformedAABB.max());
     camera.eye(glm::vec3(d, 0.0f, d));
+    //float d = 2.0f;
+    //camera.eye(glm::vec3(d, 0.0f, d));
 
-    //camera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
+    camera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
     camera.lookAt(glm::vec3(0));
     camera.view(ubo.view);
     camera.proj(ubo.proj);
@@ -1590,7 +1592,7 @@ private:
     vkUnmapMemory(device, uniformBufferMemory);
 
     debugVertices.clear();
-    //aabb(transformedAABB);
+    aabb(transformedAABB);
 
     // Recalculate the min, max
     /*
@@ -1599,12 +1601,13 @@ private:
     {
       frameVertices.push_back(DebugVertex({ glm::vec3(ubo.model * glm::vec4(vertex.pos, 1)), vertex.color}));
     }
- 
+
+    */
 
     data = nullptr;
     vkMapMemory(device, debugVertexBufferMemory, 0, sizeof(lava::DebugVertex)* debugVertices.size(), 0, &data);
     memcpy(data, debugVertices.data(), sizeof(lava::DebugVertex)* debugVertices.size());
-    vkUnmapMemory(device, debugVertexBufferMemory);   */
+    vkUnmapMemory(device, debugVertexBufferMemory);
   }
 
   void drawFrame() {
