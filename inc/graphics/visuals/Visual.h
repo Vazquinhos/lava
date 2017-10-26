@@ -2,11 +2,11 @@
 
 #include "lava.h"
 
-#include "geom/Geometry.h"
-#include "geom/Vertex.h"
+#include "render/Geometry.h"
+#include "render/Vertex.h"
 
-#include "geom/AABB.h"
-#include "geom/Transform.h"
+#include "graphics/AABB.h"
+#include "graphics/Transform.h"
 
 namespace lava
 {

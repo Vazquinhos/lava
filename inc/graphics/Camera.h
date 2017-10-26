@@ -68,9 +68,9 @@ namespace lava
       return *this;
     }
 
-    const glm::vec3& eye() const { return mEye; }
-    const glm::vec3& lookAt() const { return mLookAt; }
-    const glm::vec3& up() const { return mUp; }
+    glm::vec3& eye() { return mEye; }
+    glm::vec3& lookAt() { return mLookAt; }
+    glm::vec3& up() { return mUp; }
 
     Camera& eye(const glm::vec3& _v) { mEye = _v; return *this; }
     Camera& lookAt(const glm::vec3& _v) { mLookAt = _v; return *this; }

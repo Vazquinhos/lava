@@ -3,10 +3,11 @@
 #include "render/Window.h"
 
 #include "render/Buffer.h"
-#include "geom/Geometry.h"
+#include "render/Geometry.h"
 #include "textures/Samplers.h"
 #include "textures/Texture.h"
 #include "imgui/imgui_impl.h"
+#include "imgui/imgui_camera.h"
 
 const int WIDTH = 1270;
 const int HEIGHT = 720;
@@ -71,14 +72,14 @@ struct UniformBufferObject {
   glm::mat4 proj;
 };
 
-#include "geom/Vertex.h"
-#include "visuals/VisualMesh.h"
+#include "render/Vertex.h"
+#include "graphics/visuals/VisualMesh.h"
 
 std::vector<lava::DebugVertex> debugVertices;
 
 std::vector<uint32_t> debugIndices;
 
-#include "geom/AABB.h"
+#include "graphics/AABB.h"
 lava::AABB meshAABB;
 
 #include "graphics/Camera.h"
@@ -369,6 +370,7 @@ private:
 
       ImGui::Begin("Another Window");
       ImGui::Text("Hello from another window!");
+      lava::ImGuiCamera(camera);
       ImGui::End();
 
       static bool showTestWindow = true;
@@ -1617,12 +1619,12 @@ private:
     lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
 
     float d = glm::distance(transformedAABB.min(), transformedAABB.max());
-    camera.eye(glm::vec3(d, 0.0f, d));
+    //camera.eye(glm::vec3(d, 0.0f, d));
     //float d = 2.0f;
     //camera.eye(glm::vec3(d, 0.0f, d));
 
-    camera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
-    camera.lookAt(glm::vec3(0));
+    //amera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
+    //camera.lookAt(glm::vec3(0));
     camera.view(ubo.view);
     camera.proj(ubo.proj);
 
