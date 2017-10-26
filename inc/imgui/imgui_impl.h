@@ -8,6 +8,8 @@
 
 #include "lava.h"
 
+#include <imgui.h>
+
 namespace lava
 {
   class Window;
@@ -21,7 +23,6 @@ namespace lava
     VkDevice               device;
     VkRenderPass           render_pass;
     VkPipelineCache        pipeline_cache;
-    VkDescriptorPool       descriptor_pool;
     void(*check_vk_result)(VkResult err);
   };
 

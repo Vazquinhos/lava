@@ -6,6 +6,7 @@
 #include "geom/Geometry.h"
 #include "textures/Samplers.h"
 #include "textures/Texture.h"
+#include "imgui/imgui_impl.h"
 
 const int WIDTH = 500;
 const int HEIGHT = 300;
@@ -23,6 +24,14 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
+
+static void check_vk_result(VkResult err)
+{
+  if (err == 0) return;
+  printf("VkResult %d\n", err);
+  if (err < 0)
+    abort();
+}
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
   auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
@@ -252,6 +261,23 @@ private:
     window = new lava::Window("Vulkan", WIDTH, HEIGHT );
   }
 
+  void initImGui()
+  {
+    // Setup ImGui binding
+    lava::ImGuiInit_Data init_data = {};
+    init_data.allocator = nullptr;
+    init_data.gpu = physicalDevice;
+    init_data.device = device;
+    init_data.render_pass = renderPass;
+    init_data.pipeline_cache = VK_NULL_HANDLE;
+    init_data.check_vk_result = check_vk_result;
+    lava::ImGuiInit(window, &init_data);
+
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+    lava::ImGuiCreateFontsTexture(commandBuffer);
+    endSingleTimeCommands(commandBuffer);
+  }
+
   void initMesh()
   {
     std::string inputfile;
@@ -328,6 +354,8 @@ private:
     createDescriptorPool();
     createDescriptorSet();
 
+    initImGui();
+
     createFences();
     createCommandBuffers();
     createSemaphores();
@@ -336,6 +364,12 @@ private:
   void mainLoop() {
     while (!window->IsClosed()) {
       window->Update();
+
+      lava::ImGuiNewFrame();
+
+      ImGui::Begin("Another Window");
+      ImGui::Text("Hello from another window!");
+      ImGui::End();
 
       //updateDebugBuffers();
       //updateBuffers();
@@ -1625,7 +1659,44 @@ private:
     vkWaitForFences(device, 1, &fences[imageIndex], VK_TRUE,UINT64_MAX);
     vkResetFences(device, 1, &fences[imageIndex]);
 
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+    vkBeginCommandBuffer(commandBuffers[imageIndex], &beginInfo);
+
+    VkRenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = swapChainExtent;
+
+    std::array<VkClearValue, 2> clearValues = {};
+    clearValues[0].color = { 0.25f, 0.25f, 0.25f, 1.0f };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
     updateBuffers();
+
+    {
+      vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+      vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+      mesh.bind(commandBuffers[imageIndex]);
+      mesh.render(commandBuffers[imageIndex]);
+    }
+
+    lava::ImGuiRender(commandBuffers[imageIndex]);
+
+    vkCmdEndRenderPass(commandBuffers[imageIndex]);
+
+    if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS) {
+      throw std::runtime_error("failed to record command buffer!");
+    }
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
