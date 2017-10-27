@@ -124,18 +124,33 @@ namespace lava
   {
     if (sOutputMessageFunction != nullptr)
       sOutputMessageFunction(MessageSeverity::eWarning, _msg);
+    else
+    {
+      OutputDebugStringA(_msg.c_str());
+      OutputDebugStringA("\n");
+    }
   }
 
   void errorLog(const std::string& _msg)
   {
     if (sOutputMessageFunction != nullptr)
       sOutputMessageFunction(MessageSeverity::eError, _msg);
+    else
+    {
+      OutputDebugStringA(_msg.c_str());
+      OutputDebugStringA("\n");
+    }
   }
 
   void fatalLog(const std::string& _msg)
   {
     if (sOutputMessageFunction != nullptr)
       sOutputMessageFunction(MessageSeverity::eFatal, _msg);
+    else
+    {
+      OutputDebugStringA(_msg.c_str());
+      OutputDebugStringA("\n");
+    }
   }
 
   Debug::Debug(VkInstance _instance)

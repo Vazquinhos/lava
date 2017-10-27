@@ -699,7 +699,7 @@ namespace lava
     if (g_Pipeline) { vkDestroyPipeline(g_Device, g_Pipeline, g_Allocator); g_Pipeline = VK_NULL_HANDLE; }
   }
 
-  bool    ImGuiInit(Window* window, ImGuiInit_Data *init_data)
+  bool ImGuiInit(Window* window, ImGuiInit_Data *init_data)
   {
     g_Allocator = init_data->allocator;
     g_Gpu = init_data->gpu;

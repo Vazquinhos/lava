@@ -9,8 +9,8 @@
 #include "imgui/imgui_impl.h"
 #include "imgui/imgui_camera.h"
 
-const int WIDTH = 1270;
-const int HEIGHT = 720;
+const int WIDTH = 500;
+const int HEIGHT = 500;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -1952,8 +1952,17 @@ private:
   }
 };
 
+#include "graphics\GraphicsManager.h"
+
 INT WinMain(HINSTANCE, HINSTANCE, PSTR, INT)
 {
+  std::shared_ptr<lava::Camera> cam = lava::NewObject<lava::Camera>();
+  std::vector< std::shared_ptr< lava::Camera > > cams;
+  for (size_t i = 0; i < 100; ++i)
+  {
+    cams.push_back( lava::NewObject<lava::Camera>() );
+  }
+
   HelloTriangleApplication app;
 
   try {

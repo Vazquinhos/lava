@@ -2,9 +2,11 @@
 
 #include "lava.h"
 
+#include "GraphicsEntity.h"
+
 namespace lava
 {
-  class Camera
+  class Camera : public GraphicsEntity
   {
   public:
     Camera() = default;
