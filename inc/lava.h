@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <set>
+#include <any>
 #include <memory>
 #include <functional>
 #include <string>
@@ -78,6 +79,13 @@ namespace lava
   {
     ePerspective = 1,
     eOrthografic
+  };
+
+  enum MaterialType
+  {
+    eStandard = 1,
+    eUnlit,
+    eImageEffect
   };
 
   enum VertexFlags

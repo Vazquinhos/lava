@@ -9,6 +9,9 @@
 #include "imgui/imgui_impl.h"
 #include "imgui/imgui_camera.h"
 
+#include "render/Shader.h"
+#include "render/Pipeline.h"
+
 const int WIDTH = 500;
 const int HEIGHT = 500;
 
@@ -230,6 +233,7 @@ private:
   }
   debug;
 
+  lava::SceneObjectPipeline sceneObjectPipeline;
   std::vector<VkFence> fences;
   
   VkCommandPool commandPool;
@@ -324,9 +328,8 @@ private:
     createSwapChain();
     createImageViews();
     createRenderPass();
-    
-    createDescriptorSetLayout();
-    createGraphicsPipeline();
+
+    sceneObjectPipeline.create(device, renderPass, swapChainExtent);
 
     createDebugDescriptorSetLayout();
     createDebugGraphicsPipeline();
@@ -413,8 +416,7 @@ private:
 
     vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    
     vkDestroyRenderPass(device, renderPass, nullptr);
 
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -764,23 +766,23 @@ private:
     }
   }
 
-  void createGraphicsPipeline() {
-    auto vertShaderCode = readFile("shaders/mesh/vert.spv");
-    auto fragShaderCode = readFile("shaders/mesh/frag.spv");
-
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+  void createGraphicsPipeline()
+  {
+    lava::Shader vs;
+    vs.create(device, "shaders/mesh/vert.spv");
+    lava::Shader fs;
+    fs.create(device, "shaders/mesh/frag.spv");
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.module = vs.shaderModule();
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.module = fs.shaderModule();
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
@@ -887,8 +889,8 @@ private:
       throw std::runtime_error("failed to create graphics pipeline!");
     }
 
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vs.destroy(device);
+    fs.destroy(device);
   }
 
   void createDebugGraphicsPipeline() {
@@ -1398,7 +1400,7 @@ private:
   }
 
   void createDescriptorSet() {
-    VkDescriptorSetLayout layouts[] = { descriptorSetLayout };
+    VkDescriptorSetLayout layouts[] = { sceneObjectPipeline.descriptorLayout() };
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
@@ -1559,8 +1561,9 @@ private:
       vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
       {
-        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+        sceneObjectPipeline.bind(commandBuffers[i], &descriptorSet);
+        //vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        //vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
         mesh.bind(commandBuffers[i]);
         mesh.render(commandBuffers[i]);
       }
@@ -1692,8 +1695,9 @@ private:
     updateBuffers();
 
     {
-      vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-      vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+      sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
+      //vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+      //vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
       mesh.bind(commandBuffers[imageIndex]);
       mesh.render(commandBuffers[imageIndex]);
     }
