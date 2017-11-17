@@ -86,7 +86,9 @@ std::vector<uint32_t> debugIndices;
 lava::AABB meshAABB;
 
 #include "graphics/Camera.h"
+#include "graphics/CameraController.h"
 lava::Camera camera;
+lava::CameraController cameraController;
 
 namespace
 {
@@ -192,6 +194,7 @@ class HelloTriangleApplication {
 public:
   void run() {
     camera.create(glm::vec3(2.0f, 0.0, 2.0f), glm::vec3(0.0f));
+    cameraController.setControllCamera(&camera);
     initWindow();
     initVulkan();
     mainLoop();
@@ -374,6 +377,10 @@ private:
       ImGui::Begin("Another Window");
       ImGui::Text("Hello from another window!");
       lava::ImGuiCamera(camera);
+      ImGui::DragFloat("X Speed", &cameraController.xSpeed());
+      ImGui::DragFloat("Y Speed", &cameraController.ySpeed());
+      ImGui::DragFloat("Shift Speed", &cameraController.shiftSpeed());
+      ImGui::DragFloat("Speed", &cameraController.speed());
       ImGui::End();
 
       static bool showTestWindow = true;
@@ -381,6 +388,8 @@ private:
 
       //updateDebugBuffers();
       //updateBuffers();
+
+      cameraController.update(0.0016f);
       drawFrame();
     }
 
@@ -1961,12 +1970,6 @@ private:
 INT WinMain(HINSTANCE, HINSTANCE, PSTR, INT)
 {
   std::shared_ptr<lava::Camera> cam = lava::NewObject<lava::Camera>();
-  std::vector< std::shared_ptr< lava::Camera > > cams;
-  for (size_t i = 0; i < 100; ++i)
-  {
-    cams.push_back( lava::NewObject<lava::Camera>() );
-  }
-
   HelloTriangleApplication app;
 
   try {
