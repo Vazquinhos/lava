@@ -10,17 +10,15 @@ namespace lava
     Light() = default;
     virtual ~Light() = default;
 
-    void create
-    (
-      const glm::vec3& _position,
-      const glm::vec3& _color,
-      const glm::vec2& _rangeAttenuation,
-      const float _intensity
-    )
-    {
-       
-    }
-
+    glm::vec3& position() { return mPosition; }
+    glm::vec3& color() { return mColor; }
+    glm::vec2& rangeAttenuation () { return mRangeAttenuation; }
+    float&     intensity() { return mIntensity; }
+    
   private:
+    glm::vec3 mPosition;
+    glm::vec3 mColor;
+    glm::vec2 mRangeAttenuation;
+    float mIntensity;
   };
 }

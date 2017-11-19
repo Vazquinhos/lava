@@ -19,7 +19,7 @@ namespace lava
       const glm::vec3& _up = glm::vec3(0.0, 0.0, 1.0),
       float _fov = 60.0,
       float _aspect = 800.0 / 600,
-      float _near = 0.001f,
+      float _near = 0.1f,
       float _far = 100000.0f
     )
     {
@@ -32,23 +32,29 @@ namespace lava
       mNear = _near;
     }
 
-    void view(glm::mat4& _view)
+    void updateMatrices()
     {
-      _view = glm::lookAt(mEye, mLookAt, mUp);
-    }
-
-    void proj(glm::mat4& _proj)
-    {
+      mView = glm::lookAt(mEye, mLookAt, mUp);
       if (mMode == eOrthografic)
       {
-        glm::ortho(-1.5f * float(mAspect), 1.5f * float(mAspect), -1.5f, 1.5f, -10.0f, 10.f);
+        mProjection = glm::ortho(-1.5f * float(mAspect), 1.5f * float(mAspect), -1.5f, 1.5f, -10.0f, 10.f);
       }
       else
       {
-        _proj = glm::perspective(glm::radians(mFov), mAspect, mNear, mFar);
+        mProjection = glm::perspective(glm::radians(mFov), mAspect, mNear, mFar);
       }
 
-      _proj[1][1] *= -1;
+      mProjection[1][1] *= -1;
+    }
+
+    const glm::mat4& view() const
+    {
+      return mView;
+    }
+
+    const glm::mat4& proj() const
+    {
+      return mProjection;
     }
 
     Camera& mode(const CameraMode& _mode)
@@ -74,11 +80,14 @@ namespace lava
     glm::vec3& lookAt() { return mLookAt; }
     glm::vec3& up() { return mUp; }
 
-    Camera& eye(const glm::vec3& _v) { mEye = _v; return *this; }
-    Camera& lookAt(const glm::vec3& _v) { mLookAt = _v; return *this; }
-    Camera& up(const glm::vec3& _v) { mUp = _v; return *this; }
+    float& fov() { return mFov; }
+    float& aspect() { return mAspect; }
+    float& nearPlane() { return mNear; }
+    float& farPlane() { return mFar; }
 
   private:
+    glm::mat4 mView;
+    glm::mat4 mProjection;
     glm::vec3 mEye;
     glm::vec3 mLookAt;
     glm::vec3 mUp;

@@ -33,15 +33,18 @@ namespace lava
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
-        std::fread(&mNumVertices, sizeof(uint32_t), 1, lMeshFile);
-        vertices.resize(mNumVertices);
+        uint32_t numVertices = 0;
+        uint32_t numIndices = 0;
 
-        std::fread(vertices.data(), sizeof(Vertex), mNumVertices, lMeshFile);
+        std::fread(&numVertices, sizeof(uint32_t), 1, lMeshFile);
+        vertices.resize(numVertices);
 
-        std::fread(&mNumIndices, sizeof(uint32_t), 1, lMeshFile);
-        indices.resize(mNumIndices);
+        std::fread(vertices.data(), sizeof(Vertex), numVertices, lMeshFile);
 
-        std::fread(indices.data(), sizeof(uint32_t), mNumIndices, lMeshFile);
+        std::fread(&numIndices, sizeof(uint32_t), 1, lMeshFile);
+        indices.resize(numIndices);
+
+        std::fread(indices.data(), sizeof(uint32_t), numIndices, lMeshFile);
 
         std::shared_ptr< IndexedGeometry<Vertex, uint32_t > > geom = std::make_shared< IndexedGeometry<Vertex, uint32_t > >();
         geom->create(_device, _phyDevice, _cmdPool, _queue, vertices, indices);
@@ -55,14 +58,5 @@ namespace lava
 
       mAABB.create(min, max);
     }
-
-    virtual void render(VkCommandBuffer _commandBuffer)
-    {
-      vkCmdDrawIndexed(_commandBuffer, mNumIndices, 1, 0, 0, 0);
-    }
-
-  private:
-    uint32_t mNumVertices = 0;
-    uint32_t mNumIndices = 0;
   };
 }

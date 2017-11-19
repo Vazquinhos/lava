@@ -60,6 +60,7 @@ project "lavaEngine"
 		"../external/tinyobj/",
 		"../external/imgui/",
 		"../external/assimp/include/",
+		"../external/imguizmo/",
 		"../inc/",
 	}
 	
@@ -80,8 +81,9 @@ project "lavaEngine"
 group "external"
 project "imgui"
 	kind "StaticLib"
-	files {"../external/imgui/**.h", "../external/imgui/**.cpp"}
+	files {"../external/imgui/**.h", "../external/imgui/**.cpp", "../external/imguizmo/**.h", "../external/imguizmo/**.cpp"}
 	excludes {"../external/imgui/examples/**.**", "../external/imgui/extra_fonts/**.**"}
+	includedirs { "../external/imgui" }
 
 group "resources"
 project "shaders"

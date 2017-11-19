@@ -27,14 +27,14 @@ namespace lava
       float forwardAmount = (io.KeysDown[87]) ? 1.0f : 0.0f + (io.KeysDown[83]) ? -1.0f : 0.0f;
       float horizontalAmount = (io.KeysDown[68]) ? 1.0f : 0.0f + (io.KeysDown[65]) ? -1.0f : 0.0f;
       float verticalAmount = (io.KeysDown[81]) ? 1.0f : 0.0f + (io.KeysDown[69]) ? -1.0f : 0.0f;
-      if (glm::abs(forwardAmount + horizontalAmount + verticalAmount) > 0.0f)
+      if (glm::abs(forwardAmount) > 0.0f || glm::abs( horizontalAmount ) > 0.0f || glm::abs(verticalAmount) > 0.0f)
       {
         glm::vec3 forwardAxis = forward * forwardAmount;
         glm::vec3 rightAxis = right * horizontalAmount;
         glm::vec3 upAxis = up * verticalAmount;
         glm::vec3 displacement = glm::normalize(forwardAxis + rightAxis + upAxis);
 
-        mCamera->eye(mCamera->eye() + velocity * displacement);
+        mCamera->eye() = mCamera->eye() + velocity * displacement;
       }
 
       // Rotation of the camera
@@ -43,7 +43,7 @@ namespace lava
 
       forward = glm::cross(pitchQuat, yawQuat)*forward;
 
-      mCamera->lookAt(mCamera->eye() + forward);
+      mCamera->lookAt() = mCamera->eye() + forward;
     }
   }
 }

@@ -13,6 +13,7 @@ namespace lava
     Geometry() = default;
     virtual ~Geometry() = default;
 
+    virtual void render(VkCommandBuffer commandBuffer) = 0;
     virtual void bind(VkCommandBuffer commandBuffer) = 0;
     virtual void destroy(VkDevice _device) = 0;
   };
@@ -37,31 +38,37 @@ namespace lava
       // Vertex Buffer
       VkDeviceSize bufferSize = sizeof(VertexType) * _vertices.size();
       createStagingBuffer(_device, _phyDevice, bufferSize, (void*)_vertices.data());
-      vertexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      copyBuffer(_device, _cmdPool, _queue, stagingBuffer.buffer, vertexBuffer.buffer, bufferSize);
-      stagingBuffer.destroy(_device);
+      mVertexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer, mVertexBuffer.buffer, bufferSize);
+      mStagingBuffer.destroy(_device);
 
       // Index Buffer
+      mNumIndices = static_cast<uint32_t>(_indices.size());
       bufferSize = sizeof(IndexType) * _indices.size();
       createStagingBuffer(_device, _phyDevice, bufferSize, (void*)_indices.data());
-      indexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      copyBuffer(_device, _cmdPool, _queue, stagingBuffer.buffer, indexBuffer.buffer, bufferSize);
-      stagingBuffer.destroy(_device);
+      mIndexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer, mIndexBuffer.buffer, bufferSize);
+      mStagingBuffer.destroy(_device);
     }
 
     virtual void destroy(VkDevice _device)
     {
-      vertexBuffer.destroy(_device);
-      indexBuffer.destroy(_device);
+      mVertexBuffer.destroy(_device);
+      mIndexBuffer.destroy(_device);
     }
 
     void bind(VkCommandBuffer commandBuffer)
     {
-      VkBuffer vertexBuffers[] = { vertexBuffer.buffer };
+      VkBuffer vertexBuffers[] = { mVertexBuffer.buffer };
       VkDeviceSize offsets[] = { 0 };
       vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-      vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+      vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    }
+
+    void render(VkCommandBuffer _commandBuffer)
+    {
+      vkCmdDrawIndexed(_commandBuffer, mNumIndices, 1, 0, 0, 0);
     }
 
   private:
@@ -73,7 +80,7 @@ namespace lava
       void* _data
     )
     {
-      stagingBuffer.create
+      mStagingBuffer.create
       (
         _device,
         _phyDevice,
@@ -81,17 +88,18 @@ namespace lava
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
       );
-      stagingBuffer.update(_device, _bufferSize, _data);
+      mStagingBuffer.update(_device, _bufferSize, _data);
     }
 
-    void destroyStagingBuffer(VkDevice _device)
+    void destroym_stagingBuffer(VkDevice _device)
     {
-      stagingBuffer.destroy(_device);
+      mStagingBuffer.destroy(_device);
     }
 
-    Buffer stagingBuffer;
-    Buffer vertexBuffer;
-    Buffer indexBuffer;
+    Buffer mStagingBuffer;
+    Buffer mVertexBuffer;
+    Buffer mIndexBuffer;
+    uint32_t mNumIndices;
   };
 
 }

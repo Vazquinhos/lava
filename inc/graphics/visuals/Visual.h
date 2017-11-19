@@ -18,13 +18,6 @@ namespace lava
 
     uint32_t geometryCount() const { return static_cast<uint32_t>(mGeometries.size()); }
     const std::shared_ptr<Geometry>& geometry(const uint32_t _idx) { return mGeometries[_idx]; }
-
-    virtual void render(VkCommandBuffer _commandBuffer) = 0;
-    virtual void bind(VkCommandBuffer _commandBuffer)
-    {
-      for (auto & g : mGeometries)
-        g->bind(_commandBuffer);
-    }
     virtual void destroy(VkDevice _device)
     {
       for (auto & g : mGeometries)

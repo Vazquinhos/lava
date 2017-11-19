@@ -35,8 +35,6 @@ void compileMesh(const std::string& _meshPath)
     aiProcess_GenSmoothNormals |
     aiProcess_Triangulate |
     aiProcess_JoinIdenticalVertices |
-    aiProcess_OptimizeMeshes |
-    aiProcess_OptimizeGraph |
     aiProcess_FlipUVs);
 
   if (scene)

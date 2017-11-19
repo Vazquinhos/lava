@@ -12,8 +12,10 @@
 #include "render/Shader.h"
 #include "render/Pipeline.h"
 
-const int WIDTH = 500;
-const int HEIGHT = 500;
+#include "ImGuizmo.h"
+
+static int WIDTH = 1280;
+static int HEIGHT = 720;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -75,6 +77,9 @@ struct UniformBufferObject {
   glm::mat4 proj;
 };
 
+UniformBufferObject ubo = {};
+bool initedMatrix = false;
+
 #include "render/Vertex.h"
 #include "graphics/visuals/VisualMesh.h"
 
@@ -92,6 +97,57 @@ lava::CameraController cameraController;
 
 namespace
 {
+  void EditTransform(const lava::Camera& camera, glm::mat4& matrix)
+  {
+    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+    static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+    if (ImGui::IsKeyPressed(90))
+      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+    if (ImGui::IsKeyPressed(69))
+      mCurrentGizmoOperation = ImGuizmo::ROTATE;
+    if (ImGui::IsKeyPressed(82)) // r Key
+      mCurrentGizmoOperation = ImGuizmo::SCALE;
+    if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE))
+      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::ROTATE))
+      mCurrentGizmoOperation = ImGuizmo::ROTATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::SCALE))
+      mCurrentGizmoOperation = ImGuizmo::SCALE;
+    float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+    ImGuizmo::DecomposeMatrixToComponents(&matrix[0].x, matrixTranslation, matrixRotation, matrixScale);
+    ImGui::InputFloat3("Tr", matrixTranslation, 3);
+    ImGui::InputFloat3("Rt", matrixRotation, 3);
+    ImGui::InputFloat3("Sc", matrixScale, 3);
+    ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, &matrix[0].x);
+
+    if (mCurrentGizmoOperation != ImGuizmo::SCALE)
+    {
+      if (ImGui::RadioButton("Local", mCurrentGizmoMode == ImGuizmo::LOCAL))
+        mCurrentGizmoMode = ImGuizmo::LOCAL;
+      ImGui::SameLine();
+      if (ImGui::RadioButton("World", mCurrentGizmoMode == ImGuizmo::WORLD))
+        mCurrentGizmoMode = ImGuizmo::WORLD;
+    }
+    static bool useSnap(false);
+    if (ImGui::IsKeyPressed(83))
+      useSnap = !useSnap;
+    ImGui::Checkbox("", &useSnap);
+    ImGui::SameLine();
+
+    ImGuiIO& io = ImGui::GetIO();
+    glm::mat4 view = camera.view();
+    glm::transpose(view);
+    glm::mat4 prj = camera.proj();
+    glm::transpose(prj);
+    glm::transpose(matrix);
+    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+    ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, &matrix[0][0], NULL, NULL);
+    ImGuizmo::DrawCube(&view[0][0], &prj[0][0], &matrix[0][0]);
+    glm::transpose(matrix);
+  }
+
   void axis(float _size)
   {
     uint32_t idx = static_cast<uint32_t>(debugVertices.size());
@@ -193,7 +249,8 @@ namespace
 class HelloTriangleApplication {
 public:
   void run() {
-    camera.create(glm::vec3(2.0f, 0.0, 2.0f), glm::vec3(0.0f));
+    //camera.create(glm::vec3(102.0f,-190.0,432.0f), glm::vec3(103.0f,-189.5f,431.5f));
+    camera.create(glm::vec3(2, -0, 2), glm::vec3(0));
     cameraController.setControllCamera(&camera);
     initWindow();
     initVulkan();
@@ -265,7 +322,8 @@ private:
   VkSemaphore imageAvailableSemaphore;
   VkSemaphore renderFinishedSemaphore;
 
-  void initWindow() {
+  void initWindow()
+  {
     window = new lava::Window("Vulkan", WIDTH, HEIGHT );
   }
 
@@ -289,7 +347,7 @@ private:
   void initMesh()
   {
     std::string inputfile;
-    int option = 1;
+    int option = 3;
     float scale = 1.0f;
     switch (option)
     {
@@ -297,7 +355,7 @@ private:
       inputfile = +"meshes/cube.obj";
       break;
     case 2:
-      inputfile += "meshes/rungholt.obj";
+      inputfile += "meshes/sponza.obj";
       scale = 0.05f;
       break;
     case 3:
@@ -373,8 +431,35 @@ private:
       window->Update();
 
       lava::ImGuiNewFrame();
+      ImGuizmo::BeginFrame();
+      ImGuizmo::Enable(true);
 
-      ImGui::Begin("Another Window");
+      glm::mat4 viewProjectionMatrix = ubo.view * ubo.proj;
+
+      //transform world to clipping coordinates
+      glm::vec4 point3D = viewProjectionMatrix * glm::vec4(1);
+      int winX = (int)glm::round(((point3D.x + 1) / 2.0) * WIDTH);
+      int winY = (int)glm::round(((1 - point3D.y) / 2.0) * HEIGHT);
+
+      glm::vec3 proj = glm::project(glm::vec3(1, 0, 0), glm::mat4(1), ubo.proj, glm::vec4(0, 0, WIDTH, HEIGHT));
+      
+      ImGuiIO& io = ImGui::GetIO();
+      ImGui::Begin("gizmo", NULL, io.DisplaySize, 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+      ImDrawList* drawList = ImGui::GetWindowDrawList();
+      drawList->AddLine(ImVec2(winX, winY), ImVec2(winX + 100, winY + 100), IM_COL32(255, 255, 0, 255));
+      drawList->AddCircleFilled(ImVec2(winX, winY), 200.0f, IM_COL32(255, 255, 0, 255));
+
+      ImGui::End();
+
+      
+
+      
+
+      ImGui::SetNextWindowPos(ImVec2(0, 0));
+      ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, HEIGHT));
+      static bool sOpened = true;
+      ImGui::Begin("LAVA ENGINE", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
       ImGui::Text("Hello from another window!");
       lava::ImGuiCamera(camera);
       ImGui::DragFloat("X Speed", &cameraController.xSpeed());
@@ -383,13 +468,11 @@ private:
       ImGui::DragFloat("Speed", &cameraController.speed());
       ImGui::End();
 
-      static bool showTestWindow = true;
-      ImGui::ShowTestWindow(&showTestWindow);
-
       //updateDebugBuffers();
       //updateBuffers();
 
       cameraController.update(0.0016f);
+      camera.updateMatrices();
       drawFrame();
     }
 
@@ -1570,14 +1653,16 @@ private:
       vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
       {
-        sceneObjectPipeline.bind(commandBuffers[i], &descriptorSet);
-        //vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        //vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-        mesh.bind(commandBuffers[i]);
-        mesh.render(commandBuffers[i]);
+        for (uint32_t j = 0, count = mesh.geometryCount(); j < count; ++j)
+        {
+          sceneObjectPipeline.bind(commandBuffers[i], &descriptorSet);
+          const auto& geometry = mesh.geometry(j);
+          geometry->bind(commandBuffers[i]);
+          geometry->render(commandBuffers[i]);
+        }
       }
       
-      //if(false)
+      if(false)
       {
         vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, debug.pipeline);
 
@@ -1626,8 +1711,14 @@ private:
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
-    UniformBufferObject ubo = {};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    if (!initedMatrix)
+    {
+      initedMatrix = true;
+      ubo.model = glm::mat4(1);
+    }
+    
+    //EditTransform(camera, ubo.model);
+    ubo.model = glm::mat4(1); //glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
 
     float d = glm::distance(transformedAABB.min(), transformedAABB.max());
@@ -1637,8 +1728,8 @@ private:
 
     //amera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
     //camera.lookAt(glm::vec3(0));
-    camera.view(ubo.view);
-    camera.proj(ubo.proj);
+    ubo.view = camera.view();
+    ubo.proj = camera.proj();
 
     void* data;
     vkMapMemory(device, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
@@ -1703,13 +1794,13 @@ private:
 
     updateBuffers();
 
-    {
-      sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
-      //vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-      //vkCmdBindDescriptorSets(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-      mesh.bind(commandBuffers[imageIndex]);
-      mesh.render(commandBuffers[imageIndex]);
-    }
+    for (uint32_t j = 0, count = mesh.geometryCount(); j < count; ++j)
+      {
+        sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
+        const auto& geometry = mesh.geometry(j);
+        geometry->bind(commandBuffers[imageIndex]);
+        geometry->render(commandBuffers[imageIndex]);
+      }
 
     lava::ImGuiRender(commandBuffers[imageIndex]);
 
