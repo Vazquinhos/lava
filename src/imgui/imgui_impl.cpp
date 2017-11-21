@@ -741,7 +741,7 @@ namespace lava
 #ifdef _WIN32
     io.ImeWindowHandle = g_Window->GetHWND();
 #endif
-    io.MouseDrawCursor = true;
+    io.MouseDrawCursor = false;
 
     ImGuiCreateDeviceObjects();
 

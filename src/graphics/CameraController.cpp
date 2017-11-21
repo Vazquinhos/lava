@@ -44,6 +44,7 @@ namespace lava
       forward = glm::cross(pitchQuat, yawQuat)*forward;
 
       mCamera->lookAt() = mCamera->eye() + forward;
+      mCamera->up() = up;
     }
   }
 }

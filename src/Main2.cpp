@@ -99,7 +99,7 @@ namespace
 {
   void EditTransform(const lava::Camera& camera, glm::mat4& matrix)
   {
-    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::TRANSLATE);
     static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
     if (ImGui::IsKeyPressed(90))
       mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
@@ -138,14 +138,9 @@ namespace
 
     ImGuiIO& io = ImGui::GetIO();
     glm::mat4 view = camera.view();
-    glm::transpose(view);
     glm::mat4 prj = camera.proj();
-    glm::transpose(prj);
-    glm::transpose(matrix);
     ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
     ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, &matrix[0][0], NULL, NULL);
-    ImGuizmo::DrawCube(&view[0][0], &prj[0][0], &matrix[0][0]);
-    glm::transpose(matrix);
   }
 
   void axis(float _size)
@@ -250,7 +245,10 @@ class HelloTriangleApplication {
 public:
   void run() {
     //camera.create(glm::vec3(102.0f,-190.0,432.0f), glm::vec3(103.0f,-189.5f,431.5f));
-    camera.create(glm::vec3(2, -0, 2), glm::vec3(0));
+    camera.eye() = glm::vec3(2, 0, 2);
+    camera.lookAt() = glm::vec3(0);
+    camera.viewport() = glm::vec4(0.0f, 0.0f, WIDTH, HEIGHT);
+    camera.fov() = 60.0f;
     cameraController.setControllCamera(&camera);
     initWindow();
     initVulkan();
@@ -429,11 +427,16 @@ private:
   void mainLoop() {
     while (!window->IsClosed()) {
       window->Update();
+      
+      cameraController.update(0.0016f);
+      camera.updateMatrices();
 
       lava::ImGuiNewFrame();
       ImGuizmo::BeginFrame();
       ImGuizmo::Enable(true);
+      EditTransform(camera, ubo.model);
 
+      /*
       glm::mat4 viewProjectionMatrix = ubo.view * ubo.proj;
 
       //transform world to clipping coordinates
@@ -450,11 +453,7 @@ private:
       drawList->AddLine(ImVec2(winX, winY), ImVec2(winX + 100, winY + 100), IM_COL32(255, 255, 0, 255));
       drawList->AddCircleFilled(ImVec2(winX, winY), 200.0f, IM_COL32(255, 255, 0, 255));
 
-      ImGui::End();
-
-      
-
-      
+      ImGui::End();*/
 
       ImGui::SetNextWindowPos(ImVec2(0, 0));
       ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, HEIGHT));
@@ -470,8 +469,7 @@ private:
 
       //updateDebugBuffers();
       //updateBuffers();
-
-      cameraController.update(0.0016f);
+      
       camera.updateMatrices();
       drawFrame();
     }
@@ -1718,7 +1716,6 @@ private:
     }
     
     //EditTransform(camera, ubo.model);
-    ubo.model = glm::mat4(1); //glm::rotate(glm::mat4(1.0f), time * glm::radians(20.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
 
     float d = glm::distance(transformedAABB.min(), transformedAABB.max());
