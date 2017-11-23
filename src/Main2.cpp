@@ -11,11 +11,12 @@
 
 #include "render/Shader.h"
 #include "render/Pipeline.h"
+#include "graphics/visuals/VisualGizmo.h"
 
 #include "ImGuizmo.h"
 
-static int WIDTH = 1280;
-static int HEIGHT = 720;
+static int WIDTH = 500;
+static int HEIGHT = 300;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -436,30 +437,13 @@ private:
       ImGuizmo::Enable(true);
       EditTransform(camera, ubo.model);
 
-      /*
-      glm::mat4 viewProjectionMatrix = ubo.view * ubo.proj;
-
-      //transform world to clipping coordinates
-      glm::vec4 point3D = viewProjectionMatrix * glm::vec4(1);
-      int winX = (int)glm::round(((point3D.x + 1) / 2.0) * WIDTH);
-      int winY = (int)glm::round(((1 - point3D.y) / 2.0) * HEIGHT);
-
-      glm::vec3 proj = glm::project(glm::vec3(1, 0, 0), glm::mat4(1), ubo.proj, glm::vec4(0, 0, WIDTH, HEIGHT));
-      
-      ImGuiIO& io = ImGui::GetIO();
-      ImGui::Begin("gizmo", NULL, io.DisplaySize, 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
-
-      ImDrawList* drawList = ImGui::GetWindowDrawList();
-      drawList->AddLine(ImVec2(winX, winY), ImVec2(winX + 100, winY + 100), IM_COL32(255, 255, 0, 255));
-      drawList->AddCircleFilled(ImVec2(winX, winY), 200.0f, IM_COL32(255, 255, 0, 255));
-
-      ImGui::End();*/
+      lava::Gizmo::NewFrame();
+      lava::Gizmo::BoundingBox(camera, mesh.aabb(), ubo.model);
 
       ImGui::SetNextWindowPos(ImVec2(0, 0));
       ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, HEIGHT));
       static bool sOpened = true;
       ImGui::Begin("LAVA ENGINE", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
-      ImGui::Text("Hello from another window!");
       lava::ImGuiCamera(camera);
       ImGui::DragFloat("X Speed", &cameraController.xSpeed());
       ImGui::DragFloat("Y Speed", &cameraController.ySpeed());

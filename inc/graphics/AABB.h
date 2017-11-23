@@ -26,7 +26,7 @@ namespace lava
       glm::vec3 max = glm::vec3(-std::numeric_limits<float>::infinity());
       for (const glm::vec3& corner : mCorners)
       {
-        glm::vec3 trsfCorner = glm::vec3(_model*glm::vec4(corner, 1));
+        glm::vec4 trsfCorner = _model*glm::vec4(corner, 1);
         min.x = std::min(min.x, trsfCorner.x);
         min.y = std::min(min.y, trsfCorner.y);
         min.z = std::min(min.z, trsfCorner.z);

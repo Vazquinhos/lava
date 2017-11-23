@@ -61,6 +61,7 @@ project "lavaEngine"
 		"../external/imgui/",
 		"../external/assimp/include/",
 		"../external/imguizmo/",
+		"../external/vazk/vazk",
 		"../inc/",
 	}
 	
@@ -75,10 +76,16 @@ project "lavaEngine"
 	{
 		"vulkan-1",
 		"assimp",
-		"imgui"
+		"imgui",
+		"vazk"
 	}
 
 group "external"
+project "vazk"
+	kind "StaticLib"
+	files {"../external/vazk/vazk/**.hpp", "../external/vazk/vazk/**.cpp"}
+	includedirs { "../external/vazk/vazk" }
+	
 project "imgui"
 	kind "StaticLib"
 	files {"../external/imgui/**.h", "../external/imgui/**.cpp", "../external/imguizmo/**.h", "../external/imguizmo/**.cpp"}

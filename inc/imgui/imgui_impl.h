@@ -37,4 +37,11 @@ namespace lava
   IMGUI_API bool        ImGuiCreateFontsTexture(VkCommandBuffer command_buffer);
   IMGUI_API bool        ImGuiCreateDeviceObjects();
 
+  enum class ImGuiMode
+  {
+    eNormal = 0,
+    eDebug,
+  };
+
+  ImGuiMode& GuiMode();
 }

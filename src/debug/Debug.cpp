@@ -98,9 +98,8 @@ namespace lava
       case IDIGNORE:
         ignoreNextAsserts = true;
       }
+      errorLog(_text);
     }
-
-    errorLog(_text);
     return ignoreNextAsserts;
   }
 

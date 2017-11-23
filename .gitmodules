@@ -10,3 +10,6 @@
 [submodule "external/imguizmo"]
 	path = external/imguizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "external/vazk"]
+	path = external/vazk
+	url = https://github.com/Vazquinhos/vazk.git

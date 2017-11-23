@@ -56,13 +56,24 @@ namespace lava
       return *this;
     }
 
-    glm::vec2 worldToScreenCoordinates( const glm::vec3& _worldPoint )
+    glm::vec2 worldToScreenCoordinates( const glm::vec3& _worldPoint ) const
     {
-      glm::mat4 projT = glm::transpose(mProjection);
-      glm::mat4 viewT = glm::transpose(mView);
-      glm::vec4 trans = glm::mat4(1) * mView * mProjection * glm::vec4(_worldPoint, 1);
+      glm::vec4 trans = mProjection * mView * glm::vec4(_worldPoint, 1);
       trans *= 0.5f / trans.w;
       trans += glm::vec4(0.5f, 0.5f,0,0);
+      trans.y = 1.f - trans.y;
+      trans.x *= mViewport.b;
+      trans.y *= mViewport.a;
+      trans.x += mViewport.r;
+      trans.y += mViewport.g;
+      return glm::vec2(trans.x, trans.y);
+    }
+
+    glm::vec2 worldToScreenCoordinates(const glm::vec3& _worldPoint, const glm::mat4& _modelMatrix ) const
+    {
+      glm::vec4 trans = mProjection * mView * _modelMatrix * glm::vec4(_worldPoint, 1);
+      trans *= 0.5f / trans.w;
+      trans += glm::vec4(0.5f, 0.5f, 0, 0);
       trans.y = 1.f - trans.y;
       trans.x *= mViewport.b;
       trans.y *= mViewport.a;

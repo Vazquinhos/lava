@@ -11,6 +11,9 @@
 
 namespace lava
 {
+  static ImGuiMode sImGuiMode = ImGuiMode::eNormal;
+  ImGuiMode& GuiMode() { return sImGuiMode; }
+
   static Window*  g_Window = NULL;
   static INT64                    g_Time = 0;
   static INT64                    g_TicksPerSecond = 0;

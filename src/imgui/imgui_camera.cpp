@@ -29,14 +29,26 @@ namespace lava
         }
         ImGui::TreePop();
 
-        if (ImGui::TreeNode("View"))
+        if (GuiMode() == ImGuiMode::eDebug)
         {
-          glm::mat4 view = _camera.view();
-          ImGui::DragFloat4("Row 0", &view[0][0]);
-          ImGui::DragFloat4("Row 1", &view[1][0]);
-          ImGui::DragFloat4("Row 2", &view[2][0]);
-          ImGui::DragFloat4("Row 3", &view[3][0]);
-          ImGui::TreePop();
+          if (ImGui::TreeNode("View"))
+          {
+            glm::mat4 view = _camera.view();
+            ImGui::DragFloat4("Row 0", &view[0][0]);
+            ImGui::DragFloat4("Row 1", &view[1][0]);
+            ImGui::DragFloat4("Row 2", &view[2][0]);
+            ImGui::DragFloat4("Row 3", &view[3][0]);
+            ImGui::TreePop();
+          }
+          if (ImGui::TreeNode("Projection"))
+          {
+            glm::mat4 proj = _camera.proj();
+            ImGui::DragFloat4("Row 0", &proj[0][0]);
+            ImGui::DragFloat4("Row 1", &proj[1][0]);
+            ImGui::DragFloat4("Row 2", &proj[2][0]);
+            ImGui::DragFloat4("Row 3", &proj[3][0]);
+            ImGui::TreePop();
+          }
         }
       }
       ImGui::Separator();

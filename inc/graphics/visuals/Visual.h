@@ -24,6 +24,7 @@ namespace lava
         g->destroy(_device);
     }
     bool isVisible() const { return mVisible; }
+    const AABB& aabb() const { return mAABB; }
   
   protected:
     AABB mAABB;
