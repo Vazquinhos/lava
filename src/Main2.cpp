@@ -15,8 +15,8 @@
 
 #include "ImGuizmo.h"
 
-static int WIDTH = 500;
-static int HEIGHT = 300;
+static int WIDTH = 1280;
+static int HEIGHT = 720;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
