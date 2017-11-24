@@ -91,6 +91,10 @@ std::vector<uint32_t> debugIndices;
 #include "graphics/AABB.h"
 lava::AABB meshAABB;
 
+#include "graphics/Light.h"
+#include "imgui/imgui_lights.h"
+lava::Light light;
+
 #include "graphics/Camera.h"
 #include "graphics/CameraController.h"
 lava::Camera camera;
@@ -445,6 +449,7 @@ private:
       static bool sOpened = true;
       ImGui::Begin("LAVA ENGINE", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
       lava::ImGuiCamera(camera);
+      lava::ImGuiLight(light);
       ImGui::DragFloat("X Speed", &cameraController.xSpeed());
       ImGui::DragFloat("Y Speed", &cameraController.ySpeed());
       ImGui::DragFloat("Shift Speed", &cameraController.shiftSpeed());

@@ -2,12 +2,20 @@
 
 #include "lava.h"
 
-#include "GraphicsEntity.h"
+#include <EnumStringConversor.hpp>
 
 namespace lava
 {
-  class Camera : public GraphicsEntity
+  class Camera
   {
+  public:
+    enum ProjectionMode
+    {
+      ePerspective = 0,
+      eOrthografic,
+
+      MAX
+    };
   public:
     Camera() = default;
     virtual ~Camera() = default;
@@ -17,14 +25,14 @@ namespace lava
       mView = glm::lookAt(mEye, mLookAt, mUp);
       if (mMode == eOrthografic)
       {
-        mProjection = glm::ortho(-1.5f * float(mViewport.b / mViewport.a), 1.5f * float(mViewport.b / mViewport.a), -1.5f, 1.5f, -10.0f, 10.f);
+        mNear = std::max(-0.1f, mNear);
+        mFar = std::max(0.1f, mFar);
+        mProjection = glm::ortho(-1.5f * float(mViewport.b / mViewport.a), 1.5f * float(mViewport.b / mViewport.a), -1.5f, 1.5f, mNear, mFar);
       }
       else
       {
         mProjection = glm::perspective(glm::radians(mFov), mViewport.b/mViewport.a, mNear, mFar);
       }
-
-      //mProjection[1][1] *= -1;
     }
 
     const glm::mat4& view() const
@@ -37,23 +45,9 @@ namespace lava
       return mProjection;
     }
 
-    Camera& mode(const CameraMode& _mode)
+    ProjectionMode& mode()
     {
-      if (mMode != _mode)
-      {
-        mMode = _mode;
-        if (mMode == ePerspective)
-        {
-          mNear = 0.001f;
-          mFar = 1000.0f;
-        }
-        else
-        {
-          mNear = -10.0;
-          mFar = 10.0f;
-        }
-      }
-      return *this;
+      return mMode;
     }
 
     glm::vec2 worldToScreenCoordinates( const glm::vec3& _worldPoint ) const
@@ -91,6 +85,8 @@ namespace lava
     float& nearPlane() { return mNear; }
     float& farPlane() { return mFar; }
 
+    ProjectionMode& projectionMode() { return mMode; }
+
   private:
     glm::mat4 mView;
     glm::mat4 mProjection;
@@ -103,6 +99,13 @@ namespace lava
     float mNear = 0.1f;
     float mFar = 1000.0f;
 
-    CameraMode mMode = ePerspective;
+    ProjectionMode mMode = ePerspective;
   };
+
+  Begin_Enum_String(Camera::ProjectionMode)
+  {
+    Register_Enum_String(Camera::ProjectionMode::ePerspective, "Perspective");
+    Register_Enum_String(Camera::ProjectionMode::eOrthografic, "Orthografic");
+  }
+  End_Enum_String;
 }

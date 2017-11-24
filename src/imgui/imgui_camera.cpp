@@ -11,10 +11,9 @@ namespace lava
 {
   void ImGuiCamera(Camera& _camera)
   {
-      static bool sTreeOpened = true;
-      ImGui::SetNextTreeNodeOpen(sTreeOpened);
-      if (sTreeOpened = ImGui::TreeNode("Camera"))
+      if (ImGui::TreeNode("Camera"))
       {
+        ImGui::EnumCombo("Projection Mode", _camera.mode());
         ImGui::DragFloat3("Eye", &_camera.eye().x, 0.5f);
         ImGui::DragFloat3("Up", &_camera.up().x, 0.5f);
         ImGui::DragFloat3("Look At", &_camera.lookAt().x, 0.5f);
@@ -23,11 +22,14 @@ namespace lava
         ImGui::Text("Clipping Planes");
         {
           ImGui::Indent();
-          ImGui::InputFloat("Near", &_camera.nearPlane(), 0.1f);
-          ImGui::InputFloat("Far", &_camera.farPlane(), 1.0f);
+          ImGui::InputFloat("Near", &_camera.nearPlane());
+          ImGui::InputFloat("Far", &_camera.farPlane());
           ImGui::Unindent();
         }
         ImGui::TreePop();
+
+        ImGui::InputFloat4("Viewport", &_camera.viewport().x);
+        
 
         if (GuiMode() == ImGuiMode::eDebug)
         {
@@ -51,6 +53,5 @@ namespace lava
           }
         }
       }
-      ImGui::Separator();
   }
 }

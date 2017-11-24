@@ -8,6 +8,8 @@
 
 #include "lava.h"
 
+#include <EnumStringConversor.hpp>
+
 #include <imgui.h>
 
 namespace lava
@@ -44,4 +46,25 @@ namespace lava
   };
 
   ImGuiMode& GuiMode();
+}
+
+namespace ImGui
+{
+  template< typename EnumType >
+  void EnumCombo(const char* _label, EnumType& _type)
+  {
+    static int sMaxItems = static_cast<int>(EnumType::MAX);
+    static bool sItemsFilled = false;
+    static const char* sItems[EnumType::MAX] = {};
+    if (sItemsFilled == false)
+    {
+      sItemsFilled = true;
+      for (int i(0); i < sMaxItems; ++i)
+        sItems[i] = EnumString<EnumType>::asString(static_cast<EnumType>(i)).c_str();
+    }
+    
+    int idx = static_cast<int>(_type);
+    ImGui::Combo(_label, &idx, sItems, sMaxItems);
+    _type = static_cast<EnumType>(idx);
+  }
 }

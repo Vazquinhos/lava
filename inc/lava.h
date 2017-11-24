@@ -75,12 +75,6 @@ namespace lava
     return ((a + multiple - 1) / multiple) * multiple;
   }
 
-  enum CameraMode
-  {
-    ePerspective = 1,
-    eOrthografic
-  };
-
   enum MaterialType
   {
     eStandard = 1,

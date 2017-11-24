@@ -2,14 +2,26 @@
 
 #include "lava.h"
 
+#include <EnumStringConversor.hpp>
+
 namespace lava
 {
   class Light
   {
   public:
+    enum class Type
+    {
+      ePoint = 0,
+      eSpot,
+      eDirectional,
+
+      MAX
+    };
+  public:
     Light() = default;
     virtual ~Light() = default;
 
+    Type& type() { return mType; }
     glm::vec3& position() { return mPosition; }
     glm::vec3& color() { return mColor; }
     glm::vec2& rangeAttenuation () { return mRangeAttenuation; }
@@ -20,5 +32,14 @@ namespace lava
     glm::vec3 mColor;
     glm::vec2 mRangeAttenuation;
     float mIntensity;
+    Type mType;
   };
+
+  Begin_Enum_String(Light::Type)
+  {
+    Register_Enum_String(Light::Type::ePoint,       "Point");
+    Register_Enum_String(Light::Type::eSpot,        "Spot");
+    Register_Enum_String(Light::Type::eDirectional, "Directional");
+  }
+  End_Enum_String;
 }
