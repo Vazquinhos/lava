@@ -8,6 +8,7 @@
 #include "textures/Texture.h"
 #include "imgui/imgui_impl.h"
 #include "imgui/imgui_camera.h"
+#include "imgui/imgui_texture.h"
 
 #include "render/Shader.h"
 #include "render/Pipeline.h"
@@ -314,9 +315,6 @@ private:
   VkBuffer debugIndexBuffer;
   VkDeviceMemory debugIndexBufferMemory;
 
-  VkBuffer uniformBuffer;
-  VkDeviceMemory uniformBufferMemory;
-
   VkDescriptorPool descriptorPool;
   VkDescriptorSet descriptorSet;
 
@@ -394,7 +392,7 @@ private:
     createRenderPass();
 
     sceneObjectPipeline.create(device, renderPass, swapChainExtent);
-
+    
     createDebugDescriptorSetLayout();
     createDebugGraphicsPipeline();
 
@@ -402,27 +400,15 @@ private:
     createDepthResources();
     createFramebuffers();
 
-    createTextureImage();
-
-    createTextureSampler();
-    
     initMesh();
 
-    meshAABB.create(glm::vec3(-0.5f), glm::vec3(0.5f));
-    aabb(meshAABB);
-    //axis(2.0f);
-    createDebugVertexBuffer();
-    createDebugIndexBuffer();
-
+    initImGui();
+    createTextureImage();
+    createTextureSampler();
     createUniformBuffer();
-
-    createDebugDescriptorPool();
-    createDebugDescriptorSet();
 
     createDescriptorPool();
     createDescriptorSet();
-
-    initImGui();
 
     createFences();
     createCommandBuffers();
@@ -439,7 +425,7 @@ private:
       lava::ImGuiNewFrame();
       ImGuizmo::BeginFrame();
       ImGuizmo::Enable(true);
-      EditTransform(camera, ubo.model);
+      EditTransform(camera, LightModel);
 
       lava::Gizmo::NewFrame();
       lava::Gizmo::BoundingBox(camera, mesh.aabb(), ubo.model);
@@ -450,11 +436,14 @@ private:
       ImGui::Begin("LAVA ENGINE", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
       lava::ImGuiCamera(camera);
       lava::ImGuiLight(light);
+      lava::ImGuiTexture(texture);
       ImGui::DragFloat("X Speed", &cameraController.xSpeed());
       ImGui::DragFloat("Y Speed", &cameraController.ySpeed());
       ImGui::DragFloat("Shift Speed", &cameraController.shiftSpeed());
       ImGui::DragFloat("Speed", &cameraController.speed());
       ImGui::End();
+
+      //ImGui::ShowTestWindow();
 
       //updateDebugBuffers();
       //updateBuffers();
@@ -521,9 +510,9 @@ private:
 
     //vkDestroyDescriptorSetLayout(device, debug.descriptorSetLayout, nullptr);
     //vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-    vkDestroyBuffer(device, uniformBuffer, nullptr);
-    vkFreeMemory(device, uniformBufferMemory, nullptr);
-
+    uniformBuffer.destroy(device);
+    uniformBufferLight.destroy(device);
+    
     mesh.destroy(device);
 
     vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
@@ -1181,38 +1170,8 @@ private:
       commandPool,
       graphicsQueue,
       lava::Samplers::sLinearSampler,
-      "textures/Luffy.jpg"
+      "textures/d.jpg"
     );
-
-    /*
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("textures/default.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-    if (!pixels) {
-      throw std::runtime_error("failed to load texture image!");
-    }
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    stbi_image_free(pixels);
-
-    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
-
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-    */
   }
 
   void createTextureSampler()
@@ -1408,9 +1367,37 @@ private:
     vkFreeMemory(device, stagingBufferMemory, nullptr);
   }
 
-  void createUniformBuffer() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-    createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffer, uniformBufferMemory);
+  struct LightUBO
+  {
+    glm::vec3 position;
+    glm::vec3 color;
+  };
+
+  glm::mat4 LightModel = glm::mat4(1);
+
+  LightUBO uboLight;
+
+  lava::Buffer uniformBuffer;
+  lava::Buffer uniformBufferLight;
+  void createUniformBuffer()
+  {
+    uniformBuffer.create
+    (
+      device,
+      physicalDevice,
+      sizeof(UniformBufferObject),
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+
+    uniformBufferLight.create
+    (
+      device,
+      physicalDevice,
+      sizeof(LightUBO),
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
   }
 
   void createDebugDescriptorPool() {
@@ -1460,10 +1447,7 @@ private:
       throw std::runtime_error("failed to allocate descriptor set!");
     }
 
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = uniformBuffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
+    VkDescriptorBufferInfo bufferInfo = uniformBuffer.descriptorInfo();
 
     std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
 
@@ -1490,17 +1474,15 @@ private:
       throw std::runtime_error("failed to allocate descriptor set!");
     }
 
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = uniformBuffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
+    VkDescriptorBufferInfo bufferInfo = uniformBuffer.descriptorInfo();
+    VkDescriptorBufferInfo bufferInfoLight = uniformBufferLight.descriptorInfo();
 
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = texture.textureImageView;
     imageInfo.sampler = lava::Samplers::sPointSampler;
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
+    std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = descriptorSet;
@@ -1517,6 +1499,14 @@ private:
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pImageInfo = &imageInfo;
+
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = descriptorSet;
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pBufferInfo = &bufferInfoLight;
 
     vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
   }
@@ -1704,41 +1694,15 @@ private:
       ubo.model = glm::mat4(1);
     }
     
-    //EditTransform(camera, ubo.model);
-    lava::AABB transformedAABB = meshAABB.transformed(ubo.model);
-
-    float d = glm::distance(transformedAABB.min(), transformedAABB.max());
-    //camera.eye(glm::vec3(d, 0.0f, d));
-    //float d = 2.0f;
-    //camera.eye(glm::vec3(d, 0.0f, d));
-
-    //amera.lookAt((transformedAABB.min() + transformedAABB.max()) * 0.5f);
-    //camera.lookAt(glm::vec3(0));
     ubo.view = camera.view();
     ubo.proj = camera.proj();
 
-    void* data;
-    vkMapMemory(device, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(device, uniformBufferMemory);
+    glm::vec4 lightPosAux = LightModel * glm::vec4(light.position(),1.0);
+    uboLight.position = glm::vec3(lightPosAux);
+    uboLight.color = light.color();
 
-    debugVertices.clear();
-    aabb(transformedAABB);
-
-    // Recalculate the min, max
-    /*
-    std::vector<DebugVertex> frameVertices;
-    for (DebugVertex& vertex : debugVertices)
-    {
-      frameVertices.push_back(DebugVertex({ glm::vec3(ubo.model * glm::vec4(vertex.pos, 1)), vertex.color}));
-    }
-
-    */
-
-    data = nullptr;
-    vkMapMemory(device, debugVertexBufferMemory, 0, sizeof(lava::DebugVertex)* debugVertices.size(), 0, &data);
-    memcpy(data, debugVertices.data(), sizeof(lava::DebugVertex)* debugVertices.size());
-    vkUnmapMemory(device, debugVertexBufferMemory);
+    uniformBuffer.update(device, sizeof(UniformBufferObject), &ubo);
+    uniformBufferLight.update(device, sizeof(LightUBO), &uboLight);
   }
 
   void drawFrame() {

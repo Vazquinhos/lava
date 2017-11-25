@@ -6,6 +6,7 @@ namespace lava
 {
   struct Texture
   {
+    void* mTextureId = nullptr;
     VkImage textureImage;
     VkDeviceMemory textureImageMemory;
     VkImageView textureImageView;

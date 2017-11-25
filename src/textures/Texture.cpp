@@ -59,13 +59,15 @@ namespace lava
       createImage(_device, _phyDevice);
 
       transitionImageLayout(_device, _commandPool, _queue, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-      copyBufferToImage(_device, _commandPool, _queue, stagingBuffer.buffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+      copyBufferToImage(_device, _commandPool, _queue, stagingBuffer.buffer(), textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
       transitionImageLayout(_device, _commandPool, _queue, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
       stagingBuffer.destroy(_device);
       createImageView(_device, VK_IMAGE_ASPECT_COLOR_BIT);
 
       free(data);
+
+      mTextureId = (void *)(intptr_t)textureImage;
     }
     else
     {
@@ -85,7 +87,7 @@ namespace lava
       createImage(_device, _phyDevice);
 
       transitionImageLayout(_device, _commandPool, _queue, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-      copyBufferToImage(_device, _commandPool, _queue, stagingBuffer.buffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+      copyBufferToImage(_device, _commandPool, _queue, stagingBuffer.buffer(), textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
       transitionImageLayout(_device, _commandPool, _queue, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
       stagingBuffer.destroy(_device);

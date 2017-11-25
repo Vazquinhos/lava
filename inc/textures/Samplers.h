@@ -6,6 +6,14 @@ namespace lava
 {
   namespace Samplers
   {
+    enum class Type
+    {
+      eLinearRepeat = 0,
+      ePointRepeat,
+
+      MAX
+    };
+
     static VkSampler sLinearSampler;
     static VkSampler sPointSampler;
 

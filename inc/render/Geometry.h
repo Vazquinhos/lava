@@ -39,7 +39,7 @@ namespace lava
       VkDeviceSize bufferSize = sizeof(VertexType) * _vertices.size();
       createStagingBuffer(_device, _phyDevice, bufferSize, (void*)_vertices.data());
       mVertexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer, mVertexBuffer.buffer, bufferSize);
+      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer(), mVertexBuffer.buffer(), bufferSize);
       mStagingBuffer.destroy(_device);
 
       // Index Buffer
@@ -47,7 +47,7 @@ namespace lava
       bufferSize = sizeof(IndexType) * _indices.size();
       createStagingBuffer(_device, _phyDevice, bufferSize, (void*)_indices.data());
       mIndexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer, mIndexBuffer.buffer, bufferSize);
+      copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer(), mIndexBuffer.buffer(), bufferSize);
       mStagingBuffer.destroy(_device);
     }
 
@@ -59,11 +59,11 @@ namespace lava
 
     void bind(VkCommandBuffer commandBuffer)
     {
-      VkBuffer vertexBuffers[] = { mVertexBuffer.buffer };
+      VkBuffer vertexBuffers[] = { mVertexBuffer.buffer() };
       VkDeviceSize offsets[] = { 0 };
       vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-      vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+      vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer.buffer(), 0, VK_INDEX_TYPE_UINT32);
     }
 
     void render(VkCommandBuffer _commandBuffer)

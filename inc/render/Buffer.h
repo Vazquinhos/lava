@@ -4,8 +4,11 @@
 
 namespace lava
 {
-  struct Buffer
+  class Buffer
   {
+  public:
+    Buffer() = default;
+    virtual ~Buffer() = default;
     void create
     (
       VkDevice _device,
@@ -15,16 +18,17 @@ namespace lava
       VkMemoryPropertyFlags _properties
     )
     {
+      mSize = _size;
       VkBufferCreateInfo bufferInfo = {};
       bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
       bufferInfo.size = _size;
       bufferInfo.usage = _usage;
       bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-      vkCall(vkCreateBuffer(_device, &bufferInfo, nullptr, &buffer));
+      vkCall(vkCreateBuffer(_device, &bufferInfo, nullptr, &mBuffer));
 
       VkMemoryRequirements memRequirements;
-      vkGetBufferMemoryRequirements(_device, buffer, &memRequirements);
+      vkGetBufferMemoryRequirements(_device, mBuffer, &memRequirements);
 
       VkMemoryAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -44,33 +48,46 @@ namespace lava
       }
       lavaAssert(found, "Invalid memory type index");
 
-      vkCall(vkAllocateMemory(_device, &allocInfo, nullptr, &bufferMemory));
+      vkCall(vkAllocateMemory(_device, &allocInfo, nullptr, &mMemory));
 
-      vkBindBufferMemory(_device, buffer, bufferMemory, 0);
+      vkBindBufferMemory(_device, mBuffer, mMemory, 0);
     }
 
     void destroy(VkDevice _device)
     {
-      vkDestroyBuffer(_device, buffer, nullptr);
-      vkFreeMemory(_device, bufferMemory, nullptr);
+      vkDestroyBuffer(_device, mBuffer, nullptr);
+      vkFreeMemory(_device, mMemory, nullptr);
     }
 
     void copy(VkCommandBuffer _commandBuffer, VkDeviceSize _size, Buffer& other )
     {
       VkBufferCopy copyRegion = {};
       copyRegion.size = _size;
-      vkCmdCopyBuffer(_commandBuffer, buffer, other.buffer, 1, &copyRegion);
+      vkCmdCopyBuffer(_commandBuffer, mBuffer, other.mBuffer, 1, &copyRegion);
     }
 
     void update(VkDevice _device, VkDeviceSize _size, void* _data )
     {
       void* mapping = nullptr;
-      vkCall(vkMapMemory(_device, bufferMemory, 0, _size, 0, &mapping));
+      vkCall(vkMapMemory(_device, mMemory, 0, _size, 0, &mapping));
       memcpy(mapping, _data, _size);
-      vkUnmapMemory(_device, bufferMemory);
+      vkUnmapMemory(_device, mMemory);
     }
 
-    VkBuffer        buffer;
-    VkDeviceMemory  bufferMemory;
+    VkDescriptorBufferInfo descriptorInfo() const
+    {
+      VkDescriptorBufferInfo bufferInfo = {};
+      bufferInfo.buffer = mBuffer;
+      bufferInfo.offset = 0;
+      bufferInfo.range = mSize;
+      return bufferInfo;
+    }
+
+    VkBuffer buffer() { return mBuffer; }
+
+  private:
+    VkDeviceSize    mSize;
+    VkBuffer        mBuffer;
+    VkDeviceMemory  mMemory;
   };
 }
