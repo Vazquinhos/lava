@@ -4,25 +4,35 @@
 
 #include "lava.h"
 
-#include <EnumStringConversor.hpp>
-
 namespace lava
 {
-  class Component
+  class Component : public std::enable_shared_from_this<Component>
   {
   public:
     enum class Type
     {
       eTransform = 0,
+      eCamera,
+      eLight,
       eVisual,
       eMaterial,
 
       MAX
     };
   public:
-    Component() = default;
+    Component(const Type& _type)
+      : mType(_type)
+    {
+
+    }
+
     virtual ~Component() = default;
+
+    const Type& type() const { return mType; }
+
   private:
+
+    Type mType;
   };
 
   Begin_Enum_String(Component::Type)

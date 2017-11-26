@@ -23,6 +23,7 @@
 #pragma warning( push )
 #pragma warning( disable : 4201)
 #define GLM_FORCE_RADIANS
+#define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -32,9 +33,12 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #pragma warning( pop ) 
 
 #include "debug/Debug.h"
+
+#include <EnumStringConversor.hpp>
 
 #ifdef _DEBUG
 

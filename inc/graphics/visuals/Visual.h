@@ -28,7 +28,6 @@ namespace lava
   
   protected:
     AABB mAABB;
-    Transform mTransform;
     std::vector< std::shared_ptr<Geometry> > mGeometries;
     bool mVisible;
   };

@@ -2,13 +2,19 @@
 #include "lava.h"
 #include "render/Window.h"
 
+#include "ecs/World.h"
+#include "ecs/Component.h"
+#include "ecs/ComponentTransform.h"
+#include "ecs/ComponentCamera.h"
+#include "ecs/ComponentLight.h"
+#include "ecs/Entity.h"
+
 #include "render/Buffer.h"
 #include "render/Geometry.h"
 #include "textures/Samplers.h"
 #include "textures/Texture.h"
 #include "imgui/imgui_impl.h"
-#include "imgui/imgui_camera.h"
-#include "imgui/imgui_texture.h"
+#include "imgui/imgui_bindings.h"
 
 #include "render/Shader.h"
 #include "render/Pipeline.h"
@@ -93,13 +99,14 @@ std::vector<uint32_t> debugIndices;
 lava::AABB meshAABB;
 
 #include "graphics/Light.h"
-#include "imgui/imgui_lights.h"
 lava::Light light;
 
 #include "graphics/Camera.h"
 #include "graphics/CameraController.h"
 lava::Camera camera;
 lava::CameraController cameraController;
+
+lava::World world;
 
 namespace
 {
@@ -123,9 +130,9 @@ namespace
       mCurrentGizmoOperation = ImGuizmo::SCALE;
     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
     ImGuizmo::DecomposeMatrixToComponents(&matrix[0].x, matrixTranslation, matrixRotation, matrixScale);
-    ImGui::InputFloat3("Tr", matrixTranslation, 3);
-    ImGui::InputFloat3("Rt", matrixRotation, 3);
-    ImGui::InputFloat3("Sc", matrixScale, 3);
+    ImGui::DragFloat3("Position", matrixTranslation, 0.5f);
+    ImGui::DragFloat3("Rotation", matrixRotation, 0.5f);
+    ImGui::DragFloat3("Scale", matrixScale, 0.5f);
     ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, &matrix[0].x);
 
     if (mCurrentGizmoOperation != ImGuizmo::SCALE)
@@ -249,7 +256,13 @@ namespace
 
 class HelloTriangleApplication {
 public:
-  void run() {
+  void run()
+  {
+    lava::Entity* entity = world.getNewEntity();
+    entity->name() = "camera";
+    lava::Transform* trsf = entity->addComponent<lava::Transform>();
+    //lava::Camera* camera = entity->addComponent<lava::Camera>();
+
     //camera.create(glm::vec3(102.0f,-190.0,432.0f), glm::vec3(103.0f,-189.5f,431.5f));
     camera.eye() = glm::vec3(2, 0, 2);
     camera.lookAt() = glm::vec3(0);
@@ -425,23 +438,65 @@ private:
       lava::ImGuiNewFrame();
       ImGuizmo::BeginFrame();
       ImGuizmo::Enable(true);
-      EditTransform(camera, LightModel);
+      //EditTransform(camera, LightModel);
 
       lava::Gizmo::NewFrame();
       lava::Gizmo::BoundingBox(camera, mesh.aabb(), ubo.model);
 
-      ImGui::SetNextWindowPos(ImVec2(0, 0));
-      ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, HEIGHT));
+      ImGuiContext* context = ImGui::GetCurrentContext();
+      int sMenuBarHeight = context->FontBaseSize + context->Style.FramePadding.y * 2.0f;
+
+      ImGui::BeginMainMenuBar();
+      ImGui::MenuItem("LAVA ENGINE");
+      ImGui::EndMainMenuBar();
+
+      static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::TRANSLATE);
+      static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+      ImGui::SetNextWindowPos(ImVec2(WIDTH * 0.75f, sMenuBarHeight));
+      ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, 80));
+      ImGui::Begin("ToolBar", false, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
+      if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::ROTATE))
+        mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::ROTATE))
+        mCurrentGizmoOperation = ImGuizmo::ROTATE;
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::SCALE))
+        mCurrentGizmoOperation = ImGuizmo::SCALE;
+      ImGui::Separator();
+      if (ImGui::RadioButton("World", mCurrentGizmoMode == ImGuizmo::WORLD))
+        mCurrentGizmoMode = ImGuizmo::WORLD;
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Local", mCurrentGizmoMode == ImGuizmo::LOCAL))
+        mCurrentGizmoMode = ImGuizmo::LOCAL;
+      ImGui::End();
+
+      ImGui::SetNextWindowPos(ImVec2(0, sMenuBarHeight));
+      ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.15f, HEIGHT));
       static bool sOpened = true;
-      ImGui::Begin("LAVA ENGINE", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
-      lava::ImGuiCamera(camera);
+      ImGui::Begin("Hierarchy", &sOpened, ImGuiWindowFlags_NoResize|ImGuiWindowFlags_NoMove);
+      /*lava::ImGuiCamera(camera);
       lava::ImGuiLight(light);
       lava::ImGuiTexture(texture);
       ImGui::DragFloat("X Speed", &cameraController.xSpeed());
       ImGui::DragFloat("Y Speed", &cameraController.ySpeed());
       ImGui::DragFloat("Shift Speed", &cameraController.shiftSpeed());
-      ImGui::DragFloat("Speed", &cameraController.speed());
+      ImGui::DragFloat("Speed", &cameraController.speed());*/
+      lava::Entity* currentEntity = HierarchyWorld(world);
       ImGui::End();
+
+      ImGui::SetNextWindowPos(ImVec2(WIDTH * 0.75f, sMenuBarHeight + 80));
+      ImGui::SetNextWindowSize(ImVec2(WIDTH * 0.25f, HEIGHT));
+      static bool sOpenedInspector = true;
+      ImGui::Begin("Inspetor", &sOpened, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+      InspectEntity(*currentEntity);
+      ImGui::End();
+
+      ImGuiIO& io = ImGui::GetIO();
+      glm::mat4 view = camera.view();
+      glm::mat4 prj = camera.proj();
+      ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+      ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, &ubo.model[0].x /*currentEntity->getComponent<lava::Transform>()->mat()*/, NULL, NULL);
 
       //ImGui::ShowTestWindow();
 

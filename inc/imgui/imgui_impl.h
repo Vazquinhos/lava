@@ -11,6 +11,7 @@
 #include <EnumStringConversor.hpp>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 namespace lava
 {

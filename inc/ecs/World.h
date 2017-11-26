@@ -3,18 +3,36 @@
 #pragma once
 
 #include "lava.h"
+#include "Entity.h"
 
 namespace lava
 {
-  constexpr uint32_t MAX_ENTITIES = 1024;
-  class Entity;
   class World
   {
   public:
     World() = default;
     virtual ~World() = default;
 
+    void update(float _dt);
+    void render();
+
+    Entity* getNewEntity()
+    {
+      mEntities.emplace_back(std::make_unique<Entity>());
+      return mEntities[mEntities.size() - 1].get();
+    }
+
+    const size_t length()
+    {
+      return mEntities.size();
+    }
+
+    Entity* at(const size_t idx)
+    {
+      return mEntities[idx].get();
+    }
+
   private:
-    std::array< Entity, MAX_ENTITIES > mEntities;
+    std::vector< std::unique_ptr<Entity> > mEntities;
   };
 }

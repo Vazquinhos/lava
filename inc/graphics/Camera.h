@@ -2,11 +2,11 @@
 
 #include "lava.h"
 
-#include <EnumStringConversor.hpp>
+#include "ecs/Component.h"
 
 namespace lava
 {
-  class Camera
+  class Camera : public Component
   {
   public:
     enum ProjectionMode
@@ -17,7 +17,11 @@ namespace lava
       MAX
     };
   public:
-    Camera() = default;
+    Camera()
+      : Component(Type::eCamera)
+    {
+
+    }
     virtual ~Camera() = default;
 
     void updateMatrices()

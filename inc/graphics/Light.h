@@ -2,11 +2,11 @@
 
 #include "lava.h"
 
-#include <EnumStringConversor.hpp>
+#include "ecs/Component.h"
 
 namespace lava
 {
-  class Light
+  class Light: public Component
   {
   public:
     enum class Type
@@ -18,7 +18,11 @@ namespace lava
       MAX
     };
   public:
-    Light() = default;
+    Light()
+      : Component(Component::Type::eLight)
+    {
+
+    }
     virtual ~Light() = default;
 
     Type& type() { return mType; }

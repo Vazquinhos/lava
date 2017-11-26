@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "lava.h"
+#include "Component.h"
 
 namespace lava
 {
