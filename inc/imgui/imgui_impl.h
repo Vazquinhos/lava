@@ -5,6 +5,7 @@
 // If you use this binding you'll need to call 5 functions: ImGui_ImplXXXX_Init(), ImGui_ImplXXX_CreateFontsTexture(), ImGui_ImplXXXX_NewFrame(), ImGui_ImplXXXX_Render() and ImGui_ImplXXXX_Shutdown().
 // If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
+#pragma once
 
 #include "lava.h"
 
@@ -51,6 +52,8 @@ namespace lava
 
 namespace ImGui
 {
+  void BoolButton(const char* _label, bool* _isPressed, const ImVec2& size = ImVec2(0, 0));
+
   template< typename EnumType >
   void EnumCombo(const char* _label, EnumType& _type)
   {

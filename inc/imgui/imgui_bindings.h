@@ -1,22 +1,21 @@
 #pragma once
 #include "lava.h"
 
-#include <imgui.h>
+#include "imgui_impl.h"
 
 namespace lava
 {
-  class Entity;
-  class World;
-  Entity* HierarchyWorld(World& _world);
-
-  void InspectEntity(Entity& _entity);
-  void HierarchyEntity(Entity& _entity);
-
+  void Editor();
+  void Menubar();
+  void Toolbar();
+  void Hiearchy();
+  void Inspector();
+  
   class Transform;
   void InspectTransform(Transform* _trsf);
 
   class Camera;
-  void ImGuiCamera(Camera& _camera);
+  void InspectCamera(Camera* _camera);
 
   class Light;
   void ImGuiLight(Light& _light);

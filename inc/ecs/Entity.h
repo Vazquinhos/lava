@@ -44,7 +44,7 @@ namespace lava
     TComponentType* getComponent()
     {
       Component* componentRef = nullptr;
-      auto& it = mMapComponents.find(typeid(TComponentType).hash_code());
+      std::unordered_map<size_t, size_t>::const_iterator it = mMapComponents.find(typeid(TComponentType).hash_code());
       if (it != mMapComponents.end())
         componentRef = mComponents[it->second].get();
       return static_cast<TComponentType*> (componentRef);

@@ -4,8 +4,12 @@
 
 namespace lava
 {
-  struct Texture
+  class Texture
   {
+  public:
+    Texture() = default;
+    virtual ~Texture() = default;
+
     void* mTextureId = nullptr;
     VkImage textureImage;
     VkDeviceMemory textureImageMemory;
