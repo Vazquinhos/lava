@@ -4,9 +4,6 @@
 
 #include "ecs/World.h"
 #include "ecs/Component.h"
-#include "ecs/ComponentTransform.h"
-#include "ecs/ComponentCamera.h"
-#include "ecs/ComponentLight.h"
 #include "ecs/Entity.h"
 
 #include "render/Buffer.h"
@@ -20,10 +17,22 @@
 #include "render/Pipeline.h"
 #include "graphics/visuals/VisualGizmo.h"
 
+#include "graphics/Transform.h"
+
+#include "render/Vertex.h"
+#include "graphics/visuals/VisualMesh.h"
+
+#include "graphics/AABB.h"
+#include "graphics/Light.h"
+#include "graphics/Camera.h"
+#include "graphics/CameraController.h"
+
 #include "ImGuizmo.h"
 
 static int WIDTH = 1280;
 static int HEIGHT = 720;
+
+lava::VisualMesh mesh;
 
 const std::vector<const char*> validationLayers = {
   "VK_LAYER_LUNARG_standard_validation"
@@ -88,189 +97,48 @@ struct UniformBufferObject {
 UniformBufferObject ubo = {};
 bool initedMatrix = false;
 
-#include "render/Vertex.h"
-#include "graphics/visuals/VisualMesh.h"
-
 std::vector<lava::DebugVertex> debugVertices;
 
 std::vector<uint32_t> debugIndices;
 
-#include "graphics/AABB.h"
 lava::AABB meshAABB;
 
-#include "graphics/Light.h"
 lava::Light light;
 
-#include "graphics/Camera.h"
-#include "graphics/CameraController.h"
-lava::Camera camera;
+lava::Camera* camera = nullptr;
 lava::CameraController cameraController;
-
-lava::World world;
-
-namespace
-{
-  void EditTransform(const lava::Camera& camera, glm::mat4& matrix)
-  {
-    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::TRANSLATE);
-    static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
-    if (ImGui::IsKeyPressed(90))
-      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
-    if (ImGui::IsKeyPressed(69))
-      mCurrentGizmoOperation = ImGuizmo::ROTATE;
-    if (ImGui::IsKeyPressed(82)) // r Key
-      mCurrentGizmoOperation = ImGuizmo::SCALE;
-    if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE))
-      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::ROTATE))
-      mCurrentGizmoOperation = ImGuizmo::ROTATE;
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::SCALE))
-      mCurrentGizmoOperation = ImGuizmo::SCALE;
-    float matrixTranslation[3], matrixRotation[3], matrixScale[3];
-    ImGuizmo::DecomposeMatrixToComponents(&matrix[0].x, matrixTranslation, matrixRotation, matrixScale);
-    ImGui::DragFloat3("Position", matrixTranslation, 0.5f);
-    ImGui::DragFloat3("Rotation", matrixRotation, 0.5f);
-    ImGui::DragFloat3("Scale", matrixScale, 0.5f);
-    ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, &matrix[0].x);
-
-    if (mCurrentGizmoOperation != ImGuizmo::SCALE)
-    {
-      if (ImGui::RadioButton("Local", mCurrentGizmoMode == ImGuizmo::LOCAL))
-        mCurrentGizmoMode = ImGuizmo::LOCAL;
-      ImGui::SameLine();
-      if (ImGui::RadioButton("World", mCurrentGizmoMode == ImGuizmo::WORLD))
-        mCurrentGizmoMode = ImGuizmo::WORLD;
-    }
-    static bool useSnap(false);
-    if (ImGui::IsKeyPressed(83))
-      useSnap = !useSnap;
-    ImGui::Checkbox("", &useSnap);
-    ImGui::SameLine();
-
-    ImGuiIO& io = ImGui::GetIO();
-    glm::mat4 view = camera.view();
-    glm::mat4 prj = camera.proj();
-    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-    ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, &matrix[0][0], NULL, NULL);
-  }
-
-  void axis(float _size)
-  {
-    uint32_t idx = static_cast<uint32_t>(debugVertices.size());
-    debugIndices.push_back(idx);
-    debugIndices.push_back(idx+1);
-
-    debugIndices.push_back(idx + 1);
-    debugIndices.push_back(idx + 2);
-
-    debugIndices.push_back(idx + 2);
-    debugIndices.push_back(idx + 3);
-
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(1,0,0) }));
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(_size,0,0), glm::vec3(1,0,0) }));
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,_size,0), glm::vec3(0,1,0) }));
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,0) }));
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,0), glm::vec3(0,1,1) }));
-    debugVertices.push_back(lava::DebugVertex({ glm::vec3(0,0,_size), glm::vec3(0,1,1) }));
-  }
-
-  void aabb(const lava::AABB& _aabb)
-  {
-    uint32_t idx = static_cast<uint32_t>(debugVertices.size());
-
-    const std::vector< glm::vec3 > corners = _aabb.corners();
-
-    for( const glm::vec3& corner : corners )
-      debugVertices.push_back(lava::DebugVertex({ corner, glm::vec3(1,1,0) }));
-
-    //Top Quad
-    debugIndices.push_back(idx);
-    debugIndices.push_back(idx+1);
-
-    debugIndices.push_back(idx + 1);
-    debugIndices.push_back(idx + 2);
-
-    debugIndices.push_back(idx + 2);
-    debugIndices.push_back(idx + 3);
-
-    debugIndices.push_back(idx + 3);
-    debugIndices.push_back(idx);
-
-    //Bottom Quad
-    debugIndices.push_back(idx + 4);
-    debugIndices.push_back(idx + 5);
-
-    debugIndices.push_back(idx + 5);
-    debugIndices.push_back(idx + 6);
-
-    debugIndices.push_back(idx + 6);
-    debugIndices.push_back(idx + 7);
-
-    debugIndices.push_back(idx + 7);
-    debugIndices.push_back(idx + 4);
-
-    // Down lines
-    debugIndices.push_back(idx);
-    debugIndices.push_back(idx + 6);
-
-    debugIndices.push_back(idx + 1);
-    debugIndices.push_back(idx + 7);
-
-    debugIndices.push_back(idx + 2);
-    debugIndices.push_back(idx + 4);
-
-    debugIndices.push_back(idx + 3);
-    debugIndices.push_back(idx + 5);
-  }
-
-  void grid(uint32_t _size, uint32_t _steps)
-  {
-    float halfSize = _size * 0.5f;
-    float stepDistance = _size / static_cast<float>(_steps);
-
-    float x = -halfSize;
-    while (x < halfSize)
-    {
-      debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(lava::DebugVertex({ glm::vec3(x, -halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
-
-      debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(lava::DebugVertex({ glm::vec3(x, halfSize, 0), glm::vec3(0.7f,0.7f,0.7f) }));
-      x += stepDistance;
-    }
-
-    float y = -halfSize;
-    while (y < halfSize)
-    {
-      debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(lava::DebugVertex({ glm::vec3(-halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
-
-      debugIndices.push_back(static_cast<uint32_t>(debugVertices.size()));
-      debugVertices.push_back(lava::DebugVertex({ glm::vec3(halfSize, y, 0), glm::vec3(0.7f,0.7f,0.7f) }));
-      y += stepDistance;
-    }
-  }
-}
 
 class HelloTriangleApplication {
 public:
   void run()
   {
-    /*lava::Entity* entity = world.getNewEntity();
-    entity->name() = "camera";
-    lava::Transform* trsf = entity->addComponent<lava::Transform>();
-    //lava::Camera* camera = entity->addComponent<lava::Camera>();*/
-
-    //camera.create(glm::vec3(102.0f,-190.0,432.0f), glm::vec3(103.0f,-189.5f,431.5f));
-    camera.eye() = glm::vec3(2, 0, 2);
-    camera.lookAt() = glm::vec3(0);
-    camera.viewport() = glm::vec4(0.0f, 0.0f, WIDTH, HEIGHT);
-    camera.fov() = 60.0f;
-    cameraController.setControllCamera(&camera);
     initWindow();
     initVulkan();
+    
+    lava::Entity* entity = lava::World::getInstance().getNewEntity("cube");
+    entity->addComponent<lava::Transform>();
+    lava::VisualMesh* visualMesh = entity->addComponent<lava::VisualMesh>();
+    visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/cube.obj");
+
+    entity = lava::World::getInstance().getNewEntity("mitsuba");
+    entity->addComponent<lava::Transform>();
+    visualMesh = entity->addComponent<lava::VisualMesh>();
+    visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/mitsuba-sphere.obj");
+
+    entity = lava::World::getInstance().getNewEntity("point light");
+    entity->addComponent<lava::Transform>();
+    entity->addComponent<lava::Light>();
+
+    entity = lava::World::getInstance().getNewEntity("main camera");
+    entity->addComponent<lava::Transform>();
+    camera = entity->addComponent<lava::Camera>();
+    camera->eye() = glm::vec3(2, 0, 2);
+    camera->lookAt() = glm::vec3(0);
+    camera->viewport() = glm::vec4(0.0f, 0.0f, WIDTH, HEIGHT);
+    camera->fov() = 60.0f;
+
+    cameraController.setControllCamera(camera);
+
     mainLoop();
     cleanup();
   }
@@ -320,8 +188,6 @@ private:
   VkImageView depthImageView;
 
   lava::Texture texture;
-
-  lava::VisualMesh mesh;
 
   VkBuffer debugVertexBuffer;
   VkDeviceMemory debugVertexBufferMemory;
@@ -433,30 +299,18 @@ private:
       window->Update();
       
       cameraController.update(0.0016f);
-      camera.updateMatrices();
+      camera->updateMatrices();
 
       lava::ImGuiNewFrame();
-      ImGuizmo::BeginFrame();
+      //ImGuizmo::BeginFrame();
       ImGuizmo::Enable(true);
-      //EditTransform(camera, LightModel);
 
       lava::Gizmo::NewFrame();
-      lava::Gizmo::BoundingBox(camera, mesh.aabb(), ubo.model);
+      lava::Gizmo::BoundingBox(*camera, mesh.aabb(), ubo.model);
 
-      static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::TRANSLATE);
-      static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
-      ImGuiIO& io = ImGui::GetIO();
-      glm::mat4 view = camera.view();
-      glm::mat4 prj = camera.proj();
-      ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-      ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, &ubo.model[0].x /*currentEntity->getComponent<lava::Transform>()->mat()*/, NULL, NULL);
+      lava::Editor();
+     // ImGui::ShowTestWindow();
 
-      //ImGui::ShowTestWindow();
-
-      //updateDebugBuffers();
-      //updateBuffers();
-      
-      camera.updateMatrices();
       drawFrame();
     }
 
@@ -1378,10 +1232,11 @@ private:
   struct LightUBO
   {
     glm::vec3 position;
+    glm::vec3 direction;
+    glm::vec2 rangeAttenuation;
     glm::vec3 color;
+    float intensity;
   };
-
-  glm::mat4 LightModel = glm::mat4(1);
 
   LightUBO uboLight;
 
@@ -1425,11 +1280,13 @@ private:
   }
 
   void createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> poolSizes = {};
+    std::array<VkDescriptorPoolSize, 3> poolSizes = {};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = 1;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = 1;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[2].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1638,6 +1495,7 @@ private:
       vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
       {
+        /*
         for (uint32_t j = 0, count = mesh.geometryCount(); j < count; ++j)
         {
           sceneObjectPipeline.bind(commandBuffers[i], &descriptorSet);
@@ -1645,6 +1503,7 @@ private:
           geometry->bind(commandBuffers[i]);
           geometry->render(commandBuffers[i]);
         }
+        */
       }
       
       if(false)
@@ -1702,12 +1561,15 @@ private:
       ubo.model = glm::mat4(1);
     }
     
-    ubo.view = camera.view();
-    ubo.proj = camera.proj();
+    ubo.view = camera->view();
+    ubo.proj = camera->proj();
 
-    glm::vec4 lightPosAux = LightModel * glm::vec4(light.position(),1.0);
-    uboLight.position = glm::vec3(lightPosAux);
-    uboLight.color = light.color();
+    lava::Transform* trsf = lava::World::getInstance().find("point light")->getComponent<lava::Transform>();
+    uboLight.position = trsf->position();
+    uboLight.direction = glm::vec3(0.0f, 1.0f, 0.0f);
+    uboLight.color = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->color();
+    uboLight.intensity = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->intensity();
+    uboLight.rangeAttenuation = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->rangeAttenuation();
 
     uniformBuffer.update(device, sizeof(UniformBufferObject), &ubo);
     uniformBufferLight.update(device, sizeof(LightUBO), &uboLight);
@@ -1742,7 +1604,10 @@ private:
     renderPassInfo.renderArea.extent = swapChainExtent;
 
     std::array<VkClearValue, 2> clearValues = {};
-    clearValues[0].color = { 0.25f, 0.25f, 0.25f, 1.0f };
+    if (camera->clearMode() == lava::Camera::ClearMode::eSolidColor)
+      std::memcpy(&clearValues[0].color, &camera->clearColor().x, sizeof(float) * 4);
+    else
+      clearValues[0].color = { 0.25f, 0.25f, 0.25f, 1.0f };
     clearValues[1].depthStencil = { 1.0f, 0 };
 
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -1750,15 +1615,58 @@ private:
 
     vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+    VkViewport viewport = {};
+    const glm::vec4& cameraViewport = camera->viewport();
+    viewport.x = cameraViewport.x;
+    viewport.y = cameraViewport.y;
+    viewport.width = cameraViewport.z;
+    viewport.height = cameraViewport.w;
+    vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.extent = VkExtent2D{ (uint32_t)viewport.width, (uint32_t)viewport.height };
+    vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
+
     updateBuffers();
 
+    ubo.view = camera->view();
+    ubo.proj = camera->proj();
+
+    lava::World& world = lava::World::getInstance();
+    const size_t numEntities = world.length();
+    for (size_t i = 0; i < numEntities; ++i)
+    {
+      lava::Entity* currentEntity = world.at(i);
+      if (currentEntity->active())
+      {
+        lava::VisualMesh* visual = currentEntity->getComponent<lava::VisualMesh>();
+        if (visual)
+        {
+          for (uint32_t j = 0, count = visual->geometryCount(); j < count; ++j)
+          {
+            const auto& geometry = visual->geometry(j);
+            geometry->bind(commandBuffers[imageIndex]);
+
+            ubo.model = currentEntity->getComponent<lava::Transform>()->transformation();
+            
+            sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
+            uniformBuffer.update(device, sizeof(UniformBufferObject), &ubo);
+            
+            geometry->render(commandBuffers[imageIndex]);
+          }
+        }
+      }
+    }
+
+
+    /*
     for (uint32_t j = 0, count = mesh.geometryCount(); j < count; ++j)
       {
         sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
         const auto& geometry = mesh.geometry(j);
         geometry->bind(commandBuffers[imageIndex]);
         geometry->render(commandBuffers[imageIndex]);
-      }
+      }*/
 
     lava::ImGuiRender(commandBuffers[imageIndex]);
 
@@ -2014,11 +1922,8 @@ private:
   }
 };
 
-#include "graphics\GraphicsManager.h"
-
 INT WinMain(HINSTANCE, HINSTANCE, PSTR, INT)
 {
-  std::shared_ptr<lava::Camera> cam = lava::NewObject<lava::Camera>();
   HelloTriangleApplication app;
 
   try {

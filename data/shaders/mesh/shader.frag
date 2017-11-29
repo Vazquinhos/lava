@@ -2,9 +2,13 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(binding = 1) uniform sampler2D texSampler;
-layout(binding = 2) uniform LightUniformBuffer {
+layout(binding = 2) uniform LightUniformBuffer
+{
     vec3 position;
+	vec3 direction;
+	vec2 rangeAttenuation;
     vec3 color;
+	float intensity;
 } ubo;
 
 layout(location = 0) in vec3 fragColor;

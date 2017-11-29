@@ -26,17 +26,15 @@ namespace lava
     virtual ~Light() = default;
 
     Type& type() { return mType; }
-    glm::vec3& position() { return mPosition; }
     glm::vec3& color() { return mColor; }
     glm::vec2& rangeAttenuation () { return mRangeAttenuation; }
     float&     intensity() { return mIntensity; }
     
   private:
-    glm::vec3 mPosition;
-    glm::vec3 mColor;
-    glm::vec2 mRangeAttenuation;
-    float mIntensity;
-    Type mType;
+    glm::vec3 mColor = glm::vec3(1);
+    glm::vec2 mRangeAttenuation = glm::vec2(0.0f, 100.0f);
+    float mIntensity = 1.0f;
+    Type mType = Type::ePoint;
   };
 
   Begin_Enum_String(Light::Type)

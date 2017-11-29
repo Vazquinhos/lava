@@ -6,14 +6,18 @@
 #include "render/Vertex.h"
 
 #include "graphics/AABB.h"
-#include "graphics/Transform.h"
+#include "ecs/Component.h"
 
 namespace lava
 {
-  class Visual
+  class Visual : public Component
   {
   public:
-    Visual() = default;
+    Visual()
+      : Component(Component::Type::eVisual)
+    {
+
+    }
     virtual ~Visual() = default;
 
     uint32_t geometryCount() const { return static_cast<uint32_t>(mGeometries.size()); }
@@ -23,12 +27,10 @@ namespace lava
       for (auto & g : mGeometries)
         g->destroy(_device);
     }
-    bool isVisible() const { return mVisible; }
     const AABB& aabb() const { return mAABB; }
   
   protected:
     AABB mAABB;
     std::vector< std::shared_ptr<Geometry> > mGeometries;
-    bool mVisible;
   };
 }

@@ -16,6 +16,15 @@ namespace lava
     virtual void render(VkCommandBuffer commandBuffer) = 0;
     virtual void bind(VkCommandBuffer commandBuffer) = 0;
     virtual void destroy(VkDevice _device) = 0;
+
+    uint32_t& verticesCount() { return mNumVertices; }
+    uint32_t& indicesCount() { return mNumIndices; }
+  protected:
+    Buffer mStagingBuffer;
+    Buffer mVertexBuffer;
+    Buffer mIndexBuffer;
+    uint32_t mNumIndices;
+    uint32_t mNumVertices;
   };
 
   template <typename VertexType, typename IndexType>
@@ -37,6 +46,7 @@ namespace lava
     {
       // Vertex Buffer
       VkDeviceSize bufferSize = sizeof(VertexType) * _vertices.size();
+      mNumVertices = static_cast<uint32_t>(_vertices.size());
       createStagingBuffer(_device, _phyDevice, bufferSize, (void*)_vertices.data());
       mVertexBuffer.create(_device, _phyDevice, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
       copyBuffer(_device, _cmdPool, _queue, mStagingBuffer.buffer(), mVertexBuffer.buffer(), bufferSize);
@@ -95,11 +105,6 @@ namespace lava
     {
       mStagingBuffer.destroy(_device);
     }
-
-    Buffer mStagingBuffer;
-    Buffer mVertexBuffer;
-    Buffer mIndexBuffer;
-    uint32_t mNumIndices;
   };
 
 }

@@ -52,6 +52,7 @@ namespace lava
 
 namespace ImGui
 {
+  bool Float3(const char* _label, glm::vec3& _vec3);
   void BoolButton(const char* _label, bool* _isPressed, const ImVec2& size = ImVec2(0, 0));
 
   template< typename EnumType >

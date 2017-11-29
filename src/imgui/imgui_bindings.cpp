@@ -7,9 +7,13 @@
 
 #include "ecs/Entity.h"
 #include "ecs/World.h"
-#include "ecs/ComponentTransform.h"
+#include "graphics/Transform.h"
 
 #include "textures/Texture.h"
+
+#include "graphics/visuals/Visual.h"
+#include "graphics/visuals/VisualMesh.h"
+#include "graphics/AABB.h"
 
 namespace lava
 {
@@ -25,13 +29,34 @@ namespace lava
     static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
   }
 
+  void InspectVisual(Visual* _visual)
+  {
+    if (ImGui::CollapsingHeader("Visual"))
+    {
+      if (ImGui::TreeNode("Geometry"))
+      {
+        for (uint32_t j = 0, count = _visual->geometryCount(); j < count; ++j)
+        {
+          ImGui::Separator();
+          ImGui::Text("Vertices: %d Indices: %d", _visual->geometry(j)->verticesCount(), _visual->geometry(j)->indicesCount() );
+        }
+        ImGui::TreePop();
+      }
+
+      if (ImGui::TreeNode("AABB"))
+      {
+        glm::vec3 min = _visual->aabb().min();
+        glm::vec3 max = _visual->aabb().max();
+        ImGui::Float3("Min", min);
+        ImGui::Float3("Max", max);
+        ImGui::TreePop();
+      }
+    }
+  }
+
   void Editor()
   {
-    ImGuiContext* context = ImGui::GetCurrentContext();
-    sMenuBarHeight = context->FontBaseSize + context->Style.FramePadding.y * 2.0f;
-
-    Menubar();
-    Toolbar();
+    sMenuBarHeight = 0.0f;
     Inspector();
     Hiearchy();
   }
@@ -41,49 +66,9 @@ namespace lava
     ImGui::BeginMainMenuBar();
     ImGui::MenuItem("LAVA ENGINE");
     ImGui::EndMainMenuBar();
-  }
 
-  void Toolbar()
-  {
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(0.0f, io.DisplaySize.y - sToolBarHeight));
-    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, sToolBarHeight = sMenuBarHeight * 1.5f));
-    ImGui::Begin("ToolBar", false, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
-    {
-      bool translation = mCurrentGizmoOperation == ImGuizmo::TRANSLATE;
-      ImGui::BoolButton("Translate", &translation);
-      if (translation)
-        mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
-      ImGui::SameLine();
-
-      bool rotate = mCurrentGizmoOperation == ImGuizmo::ROTATE;
-      ImGui::BoolButton("Rotate", &rotate);
-      if (rotate)
-        mCurrentGizmoOperation = ImGuizmo::ROTATE;
-      ImGui::SameLine();
-
-      bool scale = mCurrentGizmoOperation == ImGuizmo::SCALE;
-      ImGui::BoolButton("Scale", &scale);
-      if (scale)
-        mCurrentGizmoOperation = ImGuizmo::SCALE;
-      ImGui::SameLine();
-
-      ImGui::Text("|");
-      ImGui::SameLine();
-
-      bool world = mCurrentGizmoMode == ImGuizmo::WORLD;
-      ImGui::BoolButton("World", &world);
-      if (world)
-        mCurrentGizmoMode = ImGuizmo::WORLD;
-      ImGui::SameLine();
-
-      bool local = mCurrentGizmoMode == ImGuizmo::LOCAL;
-      ImGui::BoolButton("Local", &local);
-      if (local)
-        mCurrentGizmoMode = ImGuizmo::LOCAL;
-      ImGui::SameLine();
-    }
-    ImGui::End();
+    ImGuiContext* context = ImGui::GetCurrentContext();
+    sMenuBarHeight = context->FontBaseSize + context->Style.FramePadding.y * 2.0f;
   }
 
   void Hiearchy()
@@ -98,12 +83,12 @@ namespace lava
     for (size_t i = 0; i < numEntities; ++i)
     {
       Entity* currentEntity = world.at(i);
-      if (ImGui::TreeNode(currentEntity->name().c_str()))
-      {
-        if (sInspectedEntity != i)
-          sInspectedEntity = i;
-        ImGui::TreePop();
-      }
+
+      bool isPressed = sInspectedEntity == i;
+      ImGui::BoolButton(currentEntity->name().c_str(), &isPressed);
+
+      if (sInspectedEntity != i && isPressed)
+        sInspectedEntity = i;
     }
     ImGui::End();
   }
@@ -117,28 +102,8 @@ namespace lava
     ImGui::Begin("Inspector", &sInspectorOpened, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
     ImGui::Separator();
 
-    World& world = lava::World::getInstance();
+   
     Entity* entity = lava::World::getInstance().at(sInspectedEntity);
-
-    ImGuizmo::Enable(io.WantCaptureMouse == false);
-
-    Entity* mainCameraEntity = world.find("main camera");
-
-    if (mainCameraEntity != nullptr)
-    {
-      Transform* trsfCmp = entity->getComponent<Transform>();
-      if (trsfCmp != nullptr)
-      {
-        Camera* cameraCmp = mainCameraEntity->getComponent<Camera>();
-
-        cameraCmp->updateMatrices();
-        glm::mat4 view = cameraCmp->view();
-        glm::mat4 prj = cameraCmp->proj();
-        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-        static glm::mat4 trsf(1);
-        ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, trsfCmp->mat());
-      }
-    }
 
     ImGui::Text("Name: %s", entity->name().c_str());
     ImGui::Checkbox("Active", &entity->active());
@@ -146,7 +111,6 @@ namespace lava
     for (size_t i = 0; i < numComponents; ++i)
     {
       Component* currentComponent = entity->at(i);
-      ImGui::Separator();
       switch (currentComponent->type())
       {
       case Component::Type::eTransform:
@@ -154,6 +118,12 @@ namespace lava
         break;
       case Component::Type::eCamera:
         InspectCamera(static_cast<Camera*>(currentComponent));
+        break;
+      case Component::Type::eLight:
+        InspectLight(static_cast<Light*>(currentComponent));
+        break;
+      case Component::Type::eVisual:
+        InspectVisual(static_cast<Visual*>(currentComponent));
         break;
       }
     }
@@ -164,9 +134,56 @@ namespace lava
   {
     if (ImGui::CollapsingHeader("Transform"))
     {
-      ImGui::DragFloat3("Position", &_trsf->position().x);
-      ImGui::DragFloat3("Rotation", &_trsf->rotation().x);
-      ImGui::DragFloat3("Scale", &_trsf->scale().x);
+      World& world = lava::World::getInstance();
+      Entity* mainCameraEntity = world.find("main camera");
+
+      if (mainCameraEntity != nullptr)
+      {
+        Camera* cameraCmp = mainCameraEntity->getComponent<Camera>();
+        glm::mat4 view = cameraCmp->view();
+        glm::mat4 prj = cameraCmp->proj();
+        ImGuiIO& io = ImGui::GetIO();
+
+        bool translation = mCurrentGizmoOperation == ImGuizmo::TRANSLATE;
+        ImGui::BoolButton("Translate", &translation);
+        if (translation)
+          mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+
+        bool rotate = mCurrentGizmoOperation == ImGuizmo::ROTATE;
+        ImGui::BoolButton("Rotate", &rotate);
+        if (rotate)
+          mCurrentGizmoOperation = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+
+        bool scale = mCurrentGizmoOperation == ImGuizmo::SCALE;
+        ImGui::BoolButton("Scale", &scale);
+        if (scale)
+          mCurrentGizmoOperation = ImGuizmo::SCALE;
+        ImGui::SameLine();
+
+        ImGui::Text("|");
+        ImGui::SameLine();
+
+        bool world = mCurrentGizmoMode == ImGuizmo::WORLD;
+        ImGui::BoolButton("World", &world);
+        if (world)
+          mCurrentGizmoMode = ImGuizmo::WORLD;
+        ImGui::SameLine();
+
+        bool local = mCurrentGizmoMode == ImGuizmo::LOCAL;
+        ImGui::BoolButton("Local", &local);
+        if (local)
+          mCurrentGizmoMode = ImGuizmo::LOCAL;
+
+        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+        ImGuizmo::Manipulate(&view[0][0], &prj[0][0], mCurrentGizmoOperation, mCurrentGizmoMode, _trsf->mat());
+        ImGui::Separator();
+      }
+      _trsf->decompose();
+      ImGui::Float3("Position", _trsf->position());
+      //ImGui::Float3("Rotation", _trsf->rotation());
+      ImGui::Float3("Scale", _trsf->scale());
       _trsf->recompose();
     }
   }
@@ -176,31 +193,37 @@ namespace lava
       if (ImGui::CollapsingHeader("Camera"))
       {
         ImGui::EnumCombo("Projection", _camera->mode());
+        ImGui::EnumCombo("Clear Mode", _camera->clearMode());
+
+        if (_camera->clearMode() == Camera::ClearMode::eSolidColor)
+          ImGui::ColorEdit4("Solid Color", &_camera->clearColor().x);
+
         ImGui::DragFloat3("Eye", &_camera->eye().x, 0.5f);
         ImGui::DragFloat3("Up", &_camera->up().x, 0.5f);
         ImGui::DragFloat3("Look At", &_camera->lookAt().x, 0.5f);
         
         ImGui::SliderFloat("FOV", &_camera->fov(), 0.0f, 90.0f, "%.0f deg", 1.0f);
-        ImGui::Text("Clipping Planes");
+        if (ImGui::TreeNode("Clipping Planes"))
         {
-          ImGui::PushItemWidth(sWidth);
+          ImGui::PushItemWidth(sWidth-20);
           ImGui::InputFloat("Near", &_camera->nearPlane());
           ImGui::SameLine();
-          ImGui::PushItemWidth(sWidth);
           ImGui::InputFloat("Far", &_camera->farPlane());
+          ImGui::PopItemWidth();
+          ImGui::TreePop();
         }
-        ImGui::Text("Viewport");
+
+        if (ImGui::TreeNode("Viewport"))
         {
           ImGui::PushItemWidth(sWidth);
-          ImGui::DragFloat("X", &_camera->viewport().x, 0.5f);
+          ImGui::DragFloat("X##Viewport", &_camera->viewport().x, 0.5f);
           ImGui::SameLine();
-          ImGui::PushItemWidth(sWidth);
-          ImGui::DragFloat("Width", &_camera->viewport().z, 0.5f);
-          ImGui::PushItemWidth(sWidth);
-          ImGui::DragFloat("Y", &_camera->viewport().y, 0.5f);
+          ImGui::DragFloat("Width##Viewport", &_camera->viewport().z, 0.5f);
+          ImGui::DragFloat("Y##Viewport", &_camera->viewport().y, 0.5f);
           ImGui::SameLine();
-          ImGui::PushItemWidth(sWidth);
-          ImGui::DragFloat("Height", &_camera->viewport().w, 0.5f);
+          ImGui::DragFloat("Height##Viewport", &_camera->viewport().w, 0.5f);
+          ImGui::PopItemWidth();
+          ImGui::TreePop();
         }
 
         if (GuiMode() == ImGuiMode::eDebug)
@@ -208,33 +231,32 @@ namespace lava
           if (ImGui::TreeNode("View"))
           {
             glm::mat4 view = _camera->view();
-            ImGui::DragFloat4("Row 0", &view[0][0]);
-            ImGui::DragFloat4("Row 1", &view[1][0]);
-            ImGui::DragFloat4("Row 2", &view[2][0]);
-            ImGui::DragFloat4("Row 3", &view[3][0]);
+            ImGui::DragFloat4("Row 0##View", &view[0][0]);
+            ImGui::DragFloat4("Row 1##View", &view[1][0]);
+            ImGui::DragFloat4("Row 2##View", &view[2][0]);
+            ImGui::DragFloat4("Row 3##View", &view[3][0]);
             ImGui::TreePop();
           }
           if (ImGui::TreeNode("Projection"))
           {
             glm::mat4 proj = _camera->proj();
-            ImGui::DragFloat4("Row 0", &proj[0][0]);
-            ImGui::DragFloat4("Row 1", &proj[1][0]);
-            ImGui::DragFloat4("Row 2", &proj[2][0]);
-            ImGui::DragFloat4("Row 3", &proj[3][0]);
+            ImGui::DragFloat4("Row 0##Proj", &proj[0][0]);
+            ImGui::DragFloat4("Row 1##Proj", &proj[1][0]);
+            ImGui::DragFloat4("Row 2##Proj", &proj[2][0]);
+            ImGui::DragFloat4("Row 3##Proj", &proj[3][0]);
             ImGui::TreePop();
           }
         }
       }
   }
 
-  void ImGuiLight(Light& _light)
+  void InspectLight(Light* _light)
   {
-    if (ImGui::TreeNode("Light"))
+    if (ImGui::CollapsingHeader("Light"))
     {
-      ImGui::EnumCombo<Light::Type>("Type", _light.type());
-      ImGui::DragFloat3("Position", &_light.position().x);
-      ImGui::ColorEdit3("Color", &_light.color().r);
-      ImGui::TreePop();
+      ImGui::EnumCombo<Light::Type>("Type", _light->type());
+      ImGui::ColorEdit3("Color", &_light->color().r);
+      ImGui::DragFloat("Intensity", &_light->intensity(), 0.05f);
     }
   }
 

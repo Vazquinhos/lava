@@ -9,25 +9,35 @@ namespace lava
   class Camera : public Component
   {
   public:
-    enum ProjectionMode
+    enum class ProjectionMode
     {
       ePerspective = 0,
       eOrthografic,
 
       MAX
     };
+
+    enum class ClearMode
+    {
+      eNothing = 0,
+      eSkybox,
+      eSolidColor,
+      eDepth,
+      
+      MAX
+    };
+
   public:
     Camera()
       : Component(Type::eCamera)
     {
-
     }
     virtual ~Camera() = default;
 
     void updateMatrices()
     {
       mView = glm::lookAt(mEye, mLookAt, mUp);
-      if (mMode == eOrthografic)
+      if (mProjectionMode == ProjectionMode::eOrthografic)
       {
         mNear = std::max(-0.1f, mNear);
         mFar = std::max(0.1f, mFar);
@@ -51,7 +61,7 @@ namespace lava
 
     ProjectionMode& mode()
     {
-      return mMode;
+      return mProjectionMode;
     }
 
     glm::vec2 worldToScreenCoordinates( const glm::vec3& _worldPoint ) const
@@ -84,12 +94,14 @@ namespace lava
     glm::vec3& lookAt() { return mLookAt; }
     glm::vec3& up() { return mUp; }
     glm::vec4& viewport() { return mViewport; }
+    glm::vec4& clearColor() { return mClearColor; }
 
     float& fov() { return mFov; }
     float& nearPlane() { return mNear; }
     float& farPlane() { return mFar; }
 
-    ProjectionMode& projectionMode() { return mMode; }
+    ProjectionMode& projectionMode() { return mProjectionMode; }
+    ClearMode& clearMode() { return mClearMode; }
 
   private:
     glm::mat4 mView;
@@ -98,18 +110,29 @@ namespace lava
     glm::vec3 mLookAt;
     glm::vec3 mUp = glm::vec3(0, 0, 1);
     glm::vec4 mViewport = glm::vec4(0, 0, 800.0f, 600.0f);
+    glm::vec4 mClearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
     float mFov = 60.0f;
     float mAspect = 800.0f/600.0f;
     float mNear = 0.1f;
     float mFar = 1000.0f;
 
-    ProjectionMode mMode = ePerspective;
+    ProjectionMode mProjectionMode = ProjectionMode::ePerspective;
+    ClearMode mClearMode = ClearMode::eSolidColor;
   };
 
   Begin_Enum_String(Camera::ProjectionMode)
   {
     Register_Enum_String(Camera::ProjectionMode::ePerspective, "Perspective");
     Register_Enum_String(Camera::ProjectionMode::eOrthografic, "Orthografic");
+  }
+  End_Enum_String;
+
+  Begin_Enum_String(Camera::ClearMode)
+  {
+    Register_Enum_String(Camera::ClearMode::eNothing, "Nothing");
+    Register_Enum_String(Camera::ClearMode::eSkybox, "Skybox");
+    Register_Enum_String(Camera::ClearMode::eSolidColor, "Solid Color");
+    Register_Enum_String(Camera::ClearMode::eDepth, "Depth");
   }
   End_Enum_String;
 }

@@ -18,7 +18,7 @@ namespace lava
   void InspectCamera(Camera* _camera);
 
   class Light;
-  void ImGuiLight(Light& _light);
+  void InspectLight(Light* _light);
 
   class Texture;
   void ImGuiTexture(Texture& _texture);
