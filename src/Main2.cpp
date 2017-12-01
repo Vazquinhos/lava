@@ -126,7 +126,9 @@ public:
     visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/mitsuba-sphere.obj");
 
     entity = lava::World::getInstance().getNewEntity("point light");
-    entity->addComponent<lava::Transform>();
+    lava::Transform * trsf = entity->addComponent<lava::Transform>();
+    trsf->position() = glm::vec3(10);
+    trsf->recompose();
     entity->addComponent<lava::Light>();
 
     entity = lava::World::getInstance().getNewEntity("main camera");
@@ -309,7 +311,6 @@ private:
       lava::Gizmo::BoundingBox(*camera, mesh.aabb(), ubo.model);
 
       lava::Editor();
-     // ImGui::ShowTestWindow();
 
       drawFrame();
     }
@@ -658,14 +659,21 @@ private:
     uboLayoutBinding.pImmutableSamplers = nullptr;
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+    VkDescriptorSetLayoutBinding uboLightLayoutBinding = {};
+    uboLayoutBinding.binding = 1;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.binding = 2;
     samplerLayoutBinding.descriptorCount = 1;
     samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, uboLightLayoutBinding, samplerLayoutBinding };
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -1229,14 +1237,24 @@ private:
     vkFreeMemory(device, stagingBufferMemory, nullptr);
   }
 
+  /*
+  struct LightUBO
+  {
+    glm::vec4 row01; // x, y, z, begin range
+    glm::vec4 row02; // x, y , z, end range
+    glm::vec3 row03; // r,g,b, intensity
+  };*/
+
   struct LightUBO
   {
     glm::vec3 position;
+    float beginRange;
     glm::vec3 direction;
-    glm::vec2 rangeAttenuation;
+    float endRange;
     glm::vec3 color;
     float intensity;
   };
+  
 
   LightUBO uboLight;
 
@@ -1283,10 +1301,11 @@ private:
     std::array<VkDescriptorPoolSize, 3> poolSizes = {};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = 1;
-    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[1].descriptorCount = 1;
-    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[2].descriptorCount = 1;
+    
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1361,17 +1380,17 @@ private:
     descriptorWrites[1].dstSet = descriptorSet;
     descriptorWrites[1].dstBinding = 1;
     descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfo;
+    descriptorWrites[1].pBufferInfo = &bufferInfoLight;
 
     descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[2].dstSet = descriptorSet;
     descriptorWrites[2].dstBinding = 2;
     descriptorWrites[2].dstArrayElement = 0;
-    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[2].descriptorCount = 1;
-    descriptorWrites[2].pBufferInfo = &bufferInfoLight;
+    descriptorWrites[2].pImageInfo = &imageInfo;
 
     vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
   }
@@ -1564,15 +1583,8 @@ private:
     ubo.view = camera->view();
     ubo.proj = camera->proj();
 
-    lava::Transform* trsf = lava::World::getInstance().find("point light")->getComponent<lava::Transform>();
-    uboLight.position = trsf->position();
-    uboLight.direction = glm::vec3(0.0f, 1.0f, 0.0f);
-    uboLight.color = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->color();
-    uboLight.intensity = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->intensity();
-    uboLight.rangeAttenuation = lava::World::getInstance().find("point light")->getComponent<lava::Light>()->rangeAttenuation();
-
     uniformBuffer.update(device, sizeof(UniformBufferObject), &ubo);
-    uniformBufferLight.update(device, sizeof(LightUBO), &uboLight);
+    
   }
 
   void drawFrame() {
@@ -1613,7 +1625,34 @@ private:
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
-    vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    lava::Transform* trsf = lava::World::getInstance().find("point light")->getComponent<lava::Transform>();
+
+    lava::Light* light = lava::World::getInstance().find("point light")->getComponent<lava::Light>();
+
+    uboLight.position = trsf->position();
+    uboLight.direction = trsf->apply(glm::vec3(0, 1, 0));
+    uboLight.beginRange = light->rangeAttenuation().x;
+    uboLight.endRange = light->rangeAttenuation().y;
+    uboLight.color = light->color();
+    uboLight.intensity = light->intensity();
+    
+    /*uboLight.row01.x = trsf->position().x;// x, y, z, begin range
+    uboLight.row01.y = trsf->position().y;// x, y, z, begin range
+    uboLight.row01.z = trsf->position().z;// x, y, z, begin range
+    uboLight.row01.w = light->rangeAttenuation().x;
+
+    uboLight.row02.x = trsf->position().x;// x, y, z, begin range
+    uboLight.row02.y = trsf->position().y;// x, y, z, begin range
+    uboLight.row02.z = trsf->position().z;// x, y, z, begin range
+    uboLight.row02.w = light->rangeAttenuation().y;
+
+    uboLight.row03.x = light->color().r;
+    uboLight.row03.y = light->color().g;
+    uboLight.row03.z = light->color().b;
+    uboLight.row03.w = light->intensity();
+    */
+
+    uniformBufferLight.update(device, sizeof(LightUBO), &uboLight);
 
     VkViewport viewport = {};
     const glm::vec4& cameraViewport = camera->viewport();
@@ -1627,7 +1666,9 @@ private:
     scissor.extent = VkExtent2D{ (uint32_t)viewport.width, (uint32_t)viewport.height };
     vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
 
-    updateBuffers();
+    vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    //updateBuffers();
 
     ubo.view = camera->view();
     ubo.proj = camera->proj();
@@ -1651,6 +1692,8 @@ private:
             
             sceneObjectPipeline.bind(commandBuffers[imageIndex], &descriptorSet);
             uniformBuffer.update(device, sizeof(UniformBufferObject), &ubo);
+            
+            
             
             geometry->render(commandBuffers[imageIndex]);
           }

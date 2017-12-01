@@ -18,7 +18,6 @@ namespace lava
       VkMemoryPropertyFlags _properties
     )
     {
-      mSize = _size;
       VkBufferCreateInfo bufferInfo = {};
       bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
       bufferInfo.size = _size;
@@ -33,6 +32,8 @@ namespace lava
       VkMemoryAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       allocInfo.allocationSize = memRequirements.size;
+
+      mSize = _size;
 
       VkPhysicalDeviceMemoryProperties memProperties;
       vkGetPhysicalDeviceMemoryProperties(_phyDevice, &memProperties);
@@ -69,8 +70,8 @@ namespace lava
     void update(VkDevice _device, VkDeviceSize _size, void* _data )
     {
       void* mapping = nullptr;
-      vkCall(vkMapMemory(_device, mMemory, 0, _size, 0, &mapping));
-      memcpy(mapping, _data, _size);
+      vkCall(vkMapMemory(_device, mMemory, 0, mSize, 0, &mapping));
+      memcpy(mapping, _data, mSize);
       vkUnmapMemory(_device, mMemory);
     }
 

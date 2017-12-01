@@ -50,7 +50,7 @@ project "lavaEngine"
 	
 	warnings "Extra" 
 	
-	files { "../src/**.cpp", "../inc/**.h", "../inc/**.hpp"}
+	files { "../src/**.cpp", "../inc/**.h", "../inc/**.hpp" }
 
 	includedirs
 	{
@@ -63,6 +63,7 @@ project "lavaEngine"
 		"../external/imguizmo/",
 		"../external/vazk/vazk",
 		"../inc/",
+		"../external/VulkanSascha/base/"
 	}
 	
 	libdirs
@@ -74,6 +75,7 @@ project "lavaEngine"
 	
 	links
 	{
+		"vlk",
 		"vulkan-1",
 		"assimp",
 		"imgui",
@@ -85,6 +87,22 @@ project "vazk"
 	kind "StaticLib"
 	files {"../external/vazk/vazk/**.hpp", "../external/vazk/vazk/**.cpp"}
 	includedirs { "../external/vazk/vazk" }
+	
+project "vlk"
+	kind "StaticLib"
+	files {"../external/VulkanSascha/base/**.hpp", "../external/VulkanSascha/base/**.cpp"}
+	includedirs 
+	{ 
+		"../external/vulkan/inc/",
+		"../external/vulkanhpp/",
+		"../external/glm/",
+		"../external/VulkanSascha/base"
+	}
+	
+	defines
+	{
+		"VK_USE_PLATFORM_WIN32_KHR"
+	}
 	
 project "imgui"
 	kind "StaticLib"

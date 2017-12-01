@@ -256,7 +256,8 @@ namespace lava
     {
       ImGui::EnumCombo<Light::Type>("Type", _light->type());
       ImGui::ColorEdit3("Color", &_light->color().r);
-      ImGui::DragFloat("Intensity", &_light->intensity(), 0.05f);
+      ImGui::DragFloat("Intensity", &_light->intensity(), 0.05f, 0.0f, 1.0f);
+      ImGui::DragFloat2("Range Attenuation", &_light->rangeAttenuation().x, 0.05f, 0.0f, std::numeric_limits<float>::max() );
     }
   }
 

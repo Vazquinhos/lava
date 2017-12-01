@@ -40,17 +40,19 @@ namespace lava
       glm::vec2 spoint = _camera.worldToScreenCoordinates(glm::vec3(0));
       
       // Bottom
-      sDrawList->AddPolyline(reinterpret_cast<ImVec2*>(&corners2d[0]), 4, color, true, sGuizmoLineThickness, true);
+      sDrawList->AddCircleFilled(ImVec2(_camera.worldToScreenCoordinates(glm::vec3(0)).x, _camera.worldToScreenCoordinates(glm::vec3(0)).y), 10.0f, 64);
+
+      //sDrawList->AddPolyline(reinterpret_cast<ImVec2*>(&corners2d[0]), 4, color, true, sGuizmoLineThickness, true);
 
       // Top
-      sDrawList->AddPolyline(reinterpret_cast<ImVec2*>(&corners2d[4]), 4, color, true, sGuizmoLineThickness, true);
+      //sDrawList->AddPolyline(reinterpret_cast<ImVec2*>(&corners2d[4]), 4, color, true, sGuizmoLineThickness, true);
 
       // Down lines
       const ImVec2* points2D = reinterpret_cast<ImVec2*>(corners2d.data());
-      sDrawList->AddLine(points2D[0], points2D[6], color, sGuizmoLineThickness);
-      sDrawList->AddLine(points2D[1], points2D[7], color, sGuizmoLineThickness);
-      sDrawList->AddLine(points2D[2], points2D[4], color, sGuizmoLineThickness);
-      sDrawList->AddLine(points2D[3], points2D[5], color, sGuizmoLineThickness);
+      //sDrawList->AddLine(points2D[0], points2D[6], color, sGuizmoLineThickness);
+     // sDrawList->AddLine(points2D[1], points2D[7], color, sGuizmoLineThickness);
+      //sDrawList->AddLine(points2D[2], points2D[4], color, sGuizmoLineThickness);
+      //sDrawList->AddLine(points2D[3], points2D[5], color, sGuizmoLineThickness);
     }
 
     void Cone(const Camera& _camera, const glm::vec3& _basePosition, const glm::vec3& _direction, const glm::vec3& _up, float _baseRadius, float _topRadius, float _height, const glm::vec4& _color)
