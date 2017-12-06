@@ -3,6 +3,7 @@
 #include "lava.h"
 
 #include "Visual.h"
+#include "render/Device.h"
 
 namespace lava
 {
@@ -14,13 +15,16 @@ namespace lava
 
     void create
     (
-      VkDevice _device,
-      VkPhysicalDevice _phyDevice,
-      VkCommandPool _cmdPool,
-      VkQueue _queue,
+      VkDevice,
+      VkPhysicalDevice,
+      VkCommandPool,
+      VkQueue,
       const std::string& _meshId
     )
     {
+      CDevice& lDevice = lava::CDevice::getInstance();
+      VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+
       std::string inputfile = "compiled/" + _meshId;
       std::FILE* lMeshFile = 0;
       fopen_s(&lMeshFile, inputfile.c_str(), "rb");
@@ -47,7 +51,7 @@ namespace lava
         std::fread(indices.data(), sizeof(uint32_t), numIndices, lMeshFile);
 
         std::shared_ptr< IndexedGeometry<Vertex, uint32_t > > geom = std::make_shared< IndexedGeometry<Vertex, uint32_t > >();
-        geom->create(_device, _phyDevice, _cmdPool, _queue, vertices, indices);
+        geom->create(lLogicalDevice, lDevice.GetPhyiscalDevice(), lDevice.GetCommandPool(), lDevice.GetGraphicsQueue(), vertices, indices);
         mGeometries.push_back(geom);
       }
 

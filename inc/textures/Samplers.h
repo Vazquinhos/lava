@@ -19,6 +19,8 @@ namespace lava
 
     static void create(VkDevice _device)
     {
+      CDevice& lDevice = CDevice::getInstance();
+      VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
       {
         VkSamplerCreateInfo samplerInfo = {};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -35,7 +37,7 @@ namespace lava
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-        vkCall(vkCreateSampler(_device, &samplerInfo, nullptr, &sLinearSampler));
+        vkCall(vkCreateSampler(lLogicalDevice, &samplerInfo, nullptr, &sLinearSampler));
       }
       
       {
@@ -54,14 +56,16 @@ namespace lava
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-        vkCall(vkCreateSampler(_device, &samplerInfo, nullptr, &sPointSampler));
+        vkCall(vkCreateSampler(lLogicalDevice, &samplerInfo, nullptr, &sPointSampler));
       }
     }
 
     static void destroy(VkDevice _device)
     {
-      vkDestroySampler(_device, sLinearSampler, nullptr);
-      vkDestroySampler(_device, sPointSampler, nullptr);
+      CDevice& lDevice = CDevice::getInstance();
+      VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+      vkDestroySampler(lLogicalDevice, sLinearSampler, nullptr);
+      vkDestroySampler(lLogicalDevice, sPointSampler, nullptr);
     }
   };
 }

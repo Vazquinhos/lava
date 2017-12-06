@@ -4,10 +4,15 @@
 #include "render/Vertex.h"
 #include "render/UniformBuffers.h"
 
+#include "render/Device.h"
+
 namespace  lava
 {
-  void SceneObjectPipeline::create(VkDevice _device, VkRenderPass _renderPass, VkExtent2D _swapChainExtent)
+  void SceneObjectPipeline::create(VkDevice, VkRenderPass, VkExtent2D )
   {
+    CDevice& lDevice = lava::CDevice::getInstance();
+    VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+
     VkDescriptorSetLayoutBinding uboLayoutBinding = {};
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorCount = 1;
@@ -35,13 +40,13 @@ namespace  lava
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data();
 
-    vkCall(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &descriptorSetLayout));
+    vkCall(vkCreateDescriptorSetLayout(lLogicalDevice, &layoutInfo, nullptr, &descriptorSetLayout));
 
     lava::Shader vs;
-    vs.create(_device, "shaders/mesh/vert.spv");
+    vs.create(lLogicalDevice, "shaders/mesh/vert.spv");
 
     lava::Shader fs;
-    fs.create(_device, "shaders/mesh/frag.spv");
+    fs.create(lLogicalDevice, "shaders/mesh/frag.spv");
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -73,17 +78,19 @@ namespace  lava
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+    const CSwapChain& lSwapChain = lDevice.GetSwapChain();
+    VkExtent2D lSwapChainExtent = lSwapChain.GetExtent2D();
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)_swapChainExtent.width;
-    viewport.height = (float)_swapChainExtent.height;
+    viewport.width = (float)lSwapChainExtent.width;
+    viewport.height = (float)lSwapChainExtent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = _swapChainExtent;
+    scissor.extent = lSwapChainExtent;
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -135,7 +142,7 @@ namespace  lava
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
-    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &layout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(lLogicalDevice, &pipelineLayoutInfo, nullptr, &layout) != VK_SUCCESS) {
       throw std::runtime_error("failed to create pipeline layout!");
     }
 
@@ -151,14 +158,14 @@ namespace  lava
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.layout = layout;
-    pipelineInfo.renderPass = _renderPass;
+    pipelineInfo.renderPass = lSwapChain.GetRenderPass();
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    vkCall(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));
+    vkCall(vkCreateGraphicsPipelines(lLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));
 
-    vs.destroy(_device);
-    fs.destroy(_device);
+    vs.destroy(lLogicalDevice);
+    fs.destroy(lLogicalDevice);
   }
 
 }

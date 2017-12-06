@@ -6,6 +6,7 @@
 #include "ecs/Component.h"
 #include "ecs/Entity.h"
 
+#include "render/Device.h"
 #include "render/Buffer.h"
 #include "render/Geometry.h"
 #include "textures/Samplers.h"
@@ -28,6 +29,7 @@
 #include "graphics/CameraController.h"
 
 #include "ImGuizmo.h"
+
 
 static int WIDTH = 1280;
 static int HEIGHT = 720;
@@ -189,7 +191,7 @@ private:
   VkDeviceMemory depthImageMemory;
   VkImageView depthImageView;
 
-  lava::Texture texture;
+  lava::CTexture texture;
 
   VkBuffer debugVertexBuffer;
   VkDeviceMemory debugVertexBufferMemory;
@@ -214,16 +216,17 @@ private:
     // Setup ImGui binding
     lava::ImGuiInit_Data init_data = {};
     init_data.allocator = nullptr;
-    init_data.gpu = physicalDevice;
-    init_data.device = device;
+    lava::CDevice& lDevice = lava::CDevice::getInstance();
+    init_data.gpu = lDevice.GetPhyiscalDevice();
+    init_data.device = lDevice.GetLogicalDevice();;
     init_data.render_pass = renderPass;
     init_data.pipeline_cache = VK_NULL_HANDLE;
     init_data.check_vk_result = check_vk_result;
     lava::ImGuiInit(window, &init_data);
 
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+    VkCommandBuffer commandBuffer = lava::CDevice::getInstance().BeginSingleExecutionCommand();
     lava::ImGuiCreateFontsTexture(commandBuffer);
-    endSingleTimeCommands(commandBuffer);
+    lava::CDevice::getInstance().EndSingleExecutionCommand(commandBuffer);
   }
 
   void initMesh()
@@ -263,6 +266,13 @@ private:
 
   void initVulkan()
   {
+    lava::CDevice& lDevice = lava::CDevice::getInstance();
+    lDevice.Create(window->GetHWND());
+
+    device = lDevice.GetLogicalDevice();
+    physicalDevice = lDevice.GetPhyiscalDevice();
+
+    /*
     createInstance();
     setupDebugCallback();
     createSurface();
@@ -271,21 +281,18 @@ private:
     createSwapChain();
     createImageViews();
     createRenderPass();
-
-    sceneObjectPipeline.create(device, renderPass, swapChainExtent);
-    
-    createDebugDescriptorSetLayout();
-    createDebugGraphicsPipeline();
-
     createCommandPool();
     createDepthResources();
-    createFramebuffers();
+    createFramebuffers();*/
+
+    sceneObjectPipeline.create(device, renderPass, swapChainExtent);
 
     initMesh();
 
-    initImGui();
-    createTextureImage();
+    //initImGui();
+
     createTextureSampler();
+    createTextureImage();
     createUniformBuffer();
 
     createDescriptorPool();
@@ -296,21 +303,22 @@ private:
     createSemaphores();
   }
 
-  void mainLoop() {
+  void mainLoop()
+  {
     while (!window->IsClosed()) {
       window->Update();
       
       cameraController.update(0.0016f);
       camera->updateMatrices();
 
-      lava::ImGuiNewFrame();
+      //lava::ImGuiNewFrame();
       //ImGuizmo::BeginFrame();
-      ImGuizmo::Enable(true);
+      //ImGuizmo::Enable(true);
 
-      lava::Gizmo::NewFrame();
-      lava::Gizmo::BoundingBox(*camera, mesh.aabb(), ubo.model);
+      //lava::Gizmo::NewFrame();
+      //lava::Gizmo::BoundingBox(*camera, mesh.aabb(), ubo.model);
 
-      lava::Editor();
+      //lava::Editor();
 
       drawFrame();
     }
@@ -367,7 +375,7 @@ private:
       vkDestroyFence(device, fences[i], nullptr);
 
     lava::Samplers::destroy(device);
-    texture.destroy(device);
+    texture.Destroy();
     
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
@@ -1032,16 +1040,10 @@ private:
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
   }
 
-  void createTextureImage() {
-    texture.create
-    (
-      device,
-      physicalDevice,
-      commandPool,
-      graphicsQueue,
-      lava::Samplers::sLinearSampler,
-      "textures/d.jpg"
-    );
+  void createTextureImage()
+  {
+    texture.Create( "textures/d.jpg" );
+    texture.SetSampler(lava::Samplers::sLinearSampler);
   }
 
   void createTextureSampler()
@@ -1361,11 +1363,8 @@ private:
     VkDescriptorBufferInfo bufferInfo = uniformBuffer.descriptorInfo();
     VkDescriptorBufferInfo bufferInfoLight = uniformBufferLight.descriptorInfo();
 
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = texture.textureImageView;
-    imageInfo.sampler = lava::Samplers::sPointSampler;
-
+    VkDescriptorImageInfo imageInfo = texture.GetDescriptor();
+    
     std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1711,7 +1710,7 @@ private:
         geometry->render(commandBuffers[imageIndex]);
       }*/
 
-    lava::ImGuiRender(commandBuffers[imageIndex]);
+    //lava::ImGuiRender(commandBuffers[imageIndex]);
 
     vkCmdEndRenderPass(commandBuffers[imageIndex]);
 

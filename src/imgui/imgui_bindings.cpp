@@ -265,10 +265,7 @@ namespace lava
   {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Separator();
-    if (_texture.mTextureId != io.Fonts->TexID)
-    {
-      ImGui::Image(_texture.textureImageMemory, ImVec2(100, 100));
-    }
+   
   }
 
 }

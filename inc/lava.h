@@ -53,6 +53,8 @@
 
 #endif
 
+#define vkNew(VkStructure, VKEnum, lVariable) VkStructure lVariable = {}; lVariable.sType = VKEnum;
+
 namespace lava
 {
   static const int sQueueSlotCount = 3;

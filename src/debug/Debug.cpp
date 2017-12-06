@@ -90,7 +90,7 @@ namespace lava
     bool ignoreNextAsserts = false;
     if (!_condition)
     {
-      switch (MessageBox(sWindowHandle, "ASSERT", _text, MB_ABORTRETRYIGNORE))
+      switch (MessageBox(sWindowHandle, _text, "ASSERT" , MB_ABORTRETRYIGNORE))
       {
       case IDABORT: //Abort
         DebugBreak();
