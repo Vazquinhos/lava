@@ -22,7 +22,8 @@ namespace lava
       ImGui::End();
     }
 
-    void BoundingBox(const Camera& _camera, const AABB& _aabb, const glm::mat4& _modelMatrix, const glm::vec4& _color)
+    /*
+    void BoundingBox(const CCamera& _camera, const AABB& _aabb, const glm::mat4& _modelMatrix, const glm::vec4& _color)
     {
       lavaAssert(sDrawList, "Invalid draw list");
 
@@ -87,5 +88,6 @@ namespace lava
       sDrawList->AddPolyline(positionsBase.data(), positionsBase.size(), color, true, sGuizmoLineThickness, true);
       sDrawList->AddPolyline(positionsTop.data(), positionsTop.size(), color, true, sGuizmoLineThickness, true);
     }
+    */
   }
 }

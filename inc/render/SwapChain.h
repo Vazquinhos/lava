@@ -27,6 +27,11 @@ namespace lava
 
     VkRenderPass GetRenderPass() const { return mRenderPass; }
     VkExtent2D GetExtent2D() const { return mDetails.Capabilities.currentExtent; }
+    size_t GetNumberOfFramebuffers() const { return mFramebuffers.size(); }
+    VkFramebuffer GetFramebufferByIdx(size_t aIdx) const { return mFramebuffers[aIdx]; }
+    VkSemaphore GetImageAvailableSemaphore() const { return mImageAvailableSemaphore; }
+
+    uint32_t GetNextImage();
 
   private:
     friend class CDevice;
@@ -38,6 +43,7 @@ namespace lava
     VkExtent2D mExtent = {};
     VkSwapchainKHR mSwapChain = nullptr;
     VkRenderPass mRenderPass;
+    VkSemaphore mImageAvailableSemaphore;
 
     std::vector<VkImage>       mImages;
     std::vector<VkImageView>   mImageViews;
@@ -52,5 +58,6 @@ namespace lava
     void CreateFrameBuffers();
     void CreateImageViews();
     void CreateDepth();
+    void CreateAcquireImageSemaphore();
   };
 }

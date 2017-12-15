@@ -7,6 +7,7 @@
 
 namespace lava
 {
+  class CCamera;
   class CDevice : public Singleton<CDevice>
   {
   public:
@@ -24,6 +25,9 @@ namespace lava
     VkQueue           GetGraphicsQueue()   const { return mQueues.Graphics; }
     const CSwapChain& GetSwapChain()       const { return mSwapChain; }
 
+    void BeginFrame(const CCamera& aRenderingCamera);
+    VkCommandBuffer GetFrameCommandBuffer() { return mCommandBuffers[mCurrentImageIndex]; }
+    void EndFrame();
 
     VkFormat         FindSupportedFormat(const std::vector<VkFormat>& aCandidates, VkImageTiling aTiling, VkFormatFeatureFlags aFeatures);
     uint32_t         FindMemoryType(uint32_t aTypeFilter, VkMemoryPropertyFlags aProperties);
@@ -51,6 +55,12 @@ namespace lava
     VkCommandPool    mCommandPool = nullptr;
     VkQueues mQueues = {};
     CSwapChain mSwapChain;
+    std::vector<VkCommandBuffer> mCommandBuffers;
+    std::vector<VkFence> mFences;
+
+    uint32_t mCurrentImageIndex = 0;
+
+    VkSemaphore mRenderFinishedSemaphore;
 
   private:
     void CreateInstance();
@@ -59,5 +69,8 @@ namespace lava
     void PickPhysicalDevice();
     void CreateLogicalDevice();
     void CreateCommandPool();
+    void CreateCommandBuffers();
+    void CreateFences();
+    void CreateRenderSemaphore();
   };
 }

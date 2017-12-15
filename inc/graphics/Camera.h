@@ -6,7 +6,7 @@
 
 namespace lava
 {
-  class Camera : public Component
+  class CCamera : public Component
   {
   public:
     enum class ProjectionMode
@@ -28,11 +28,11 @@ namespace lava
     };
 
   public:
-    Camera()
+    CCamera()
       : Component(Type::eCamera)
     {
     }
-    virtual ~Camera() = default;
+    virtual ~CCamera() = default;
 
     void updateMatrices()
     {
@@ -103,6 +103,10 @@ namespace lava
     ProjectionMode& projectionMode() { return mProjectionMode; }
     ClearMode& clearMode() { return mClearMode; }
 
+    const ClearMode& GetClearMode() const { return mClearMode; }
+    const float3& GetClearColor() const { return mClearColor; }
+    const float4& GetViewport() const { return mViewport; }
+
   private:
     glm::mat4 mView;
     glm::mat4 mProjection;
@@ -120,19 +124,19 @@ namespace lava
     ClearMode mClearMode = ClearMode::eSolidColor;
   };
 
-  Begin_Enum_String(Camera::ProjectionMode)
+  Begin_Enum_String(CCamera::ProjectionMode)
   {
-    Register_Enum_String(Camera::ProjectionMode::ePerspective, "Perspective");
-    Register_Enum_String(Camera::ProjectionMode::eOrthografic, "Orthografic");
+    Register_Enum_String(CCamera::ProjectionMode::ePerspective, "Perspective");
+    Register_Enum_String(CCamera::ProjectionMode::eOrthografic, "Orthografic");
   }
   End_Enum_String;
 
-  Begin_Enum_String(Camera::ClearMode)
+  Begin_Enum_String(CCamera::ClearMode)
   {
-    Register_Enum_String(Camera::ClearMode::eNothing, "Nothing");
-    Register_Enum_String(Camera::ClearMode::eSkybox, "Skybox");
-    Register_Enum_String(Camera::ClearMode::eSolidColor, "Solid Color");
-    Register_Enum_String(Camera::ClearMode::eDepth, "Depth");
+    Register_Enum_String(CCamera::ClearMode::eNothing, "Nothing");
+    Register_Enum_String(CCamera::ClearMode::eSkybox, "Skybox");
+    Register_Enum_String(CCamera::ClearMode::eSolidColor, "Solid Color");
+    Register_Enum_String(CCamera::ClearMode::eDepth, "Depth");
   }
   End_Enum_String;
 }

@@ -4,8 +4,8 @@
 
 namespace lava
 {
-  class Camera;
-  class CameraController
+  class CCamera;
+  class CCameraController
   {
   public:
     enum class Mode
@@ -15,10 +15,10 @@ namespace lava
     };
 
   public:
-    CameraController() = default;
-    virtual ~CameraController() = default;
+    CCameraController() = default;
+    virtual ~CCameraController() = default;
 
-    void setControllCamera(Camera* _camera);
+    void setControllCCamera(CCamera* _CCamera);
     void update(float _dt);
 
     float& xSpeed() { return mXSpeed; }
@@ -27,7 +27,7 @@ namespace lava
     float& speed() { return mSpeed; }
 
   private:
-    Camera* mCamera;
+    CCamera* mCCamera;
     float mShiftSpeed = 0.1f;
     float mSpeed = 0.01f;
     float mXSpeed = -0.001f;

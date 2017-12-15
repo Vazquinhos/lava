@@ -14,8 +14,8 @@ namespace lava
   class Transform;
   void InspectTransform(Transform* _trsf);
 
-  class Camera;
-  void InspectCamera(Camera* _camera);
+  class CCamera;
+  void InspectCCamera(CCamera* _CCamera);
 
   class Light;
   void InspectLight(Light* _light);

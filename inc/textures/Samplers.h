@@ -17,7 +17,7 @@ namespace lava
     static VkSampler sLinearSampler;
     static VkSampler sPointSampler;
 
-    static void create(VkDevice _device)
+    static void create()
     {
       CDevice& lDevice = CDevice::getInstance();
       VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
@@ -60,7 +60,7 @@ namespace lava
       }
     }
 
-    static void destroy(VkDevice _device)
+    static void destroy()
     {
       CDevice& lDevice = CDevice::getInstance();
       VkDevice lLogicalDevice = lDevice.GetLogicalDevice();

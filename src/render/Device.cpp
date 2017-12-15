@@ -1,4 +1,5 @@
 #include "render/Device.h"
+#include "graphics/Camera.h"
 
 #include <Logger.hpp>
 #include <EnumStringConversor.hpp>
@@ -149,6 +150,35 @@ namespace lava
 {
   void CDevice::Create(void* hwnd)
   {
+    Log_Info
+    ( 
+      "Initializing Engine\n"
+      "          _____    _____               _____                    _____           \n"
+      "         /\\    \\  /\\    \\             /\\    \\                  /\\    \\          \n"
+      "        /::\\____\\/::\\    \\           /::\\____\\                /::\\    \\         \n"
+      "       /:::/    /::::\\    \\         /:::/    /               /::::\\    \\        \n"
+      "      /:::/    /::::::\\    \\       /:::/    /               /::::::\\    \\       \n"
+      "     /:::/    /:::/\\:::\\    \\     /:::/    /               /:::/\\:::\\    \\      \n"
+      "    /:::/    /:::/__\\:::\\    \\   /:::/____/               /:::/__\\:::\\    \\     \n"
+      "   /:::/    /::::\\   \\:::\\    \\  |::|    |               /::::\\   \\:::\\    \\    \n"
+      "  /:::/    /::::::\\   \\:::\\    \\ |::|    |     _____    /::::::\\   \\:::\\    \\   \n"
+      " /:::/    /:::/\\:::\\   \\:::\\    \\|::|    |    /\\    \\  /:::/\\:::\\   \\:::\\    \\  \n"
+      "/:::/____/:::/  \\:::\\   \\:::\\____\\::|    |   /::\\____\\/:::/  \\:::\\   \\:::\\____\\ \n"
+      "\\:::\\    \\::/    \\:::\\  /:::/    /::|    |  /:::/    /\\::/    \\:::\\  /:::/    / \n"
+      " \\:::\\    \\/____/ \\:::\\/:::/    /|::|    | /:::/    /  \\/____/ \\:::\\/:::/    /  \n"
+      "  \\:::\\    \\       \\::::::/    / |::|____|/:::/    /            \\::::::/    /   \n"
+      "   \\:::\\    \\       \\::::/    /  |:::::::::::/    /              \\::::/    /    \n"
+      "    \\:::\\    \\      /:::/    /   \\::::::::::/____/               /:::/    /     \n"
+      "     \\:::\\    \\    /:::/    /     ~~~~~~~~~~                    /:::/    /      \n"
+      "      \\:::\\    \\  /:::/    /                                   /:::/    /       \n"
+      "       \\:::\\____\\/:::/    /                                   /:::/    /        \n"
+      "        \\::/    /\\::/    /                                    \\::/    /         \n"
+      "         \\/____/  \\/____/                                      \\/____/          \n"
+      "                                                                                \n"
+      "github:https://github.com/Vazquinhos\n"
+      "email:vazquinhos@gmail.com\n"
+    );
+
     CreateInstance();
     SetupDebugCallback();
     CreateSurface(hwnd);
@@ -156,10 +186,23 @@ namespace lava
     CreateLogicalDevice();
     CreateCommandPool();
     mSwapChain.Create();
+    CreateFences();
+    CreateCommandBuffers();
+    CreateRenderSemaphore();
   }
 
   void CDevice::Destroy()
   {
+    vkWaitForFences(mDevice, static_cast<uint32_t>(mFences.size()), mFences.data(), VK_TRUE, UINT64_MAX);
+    for (size_t i = 0; i < mFences.size(); ++i)
+      vkDestroyFence(mDevice, mFences[i], nullptr);
+
+    vkDestroySemaphore(mDevice, mRenderFinishedSemaphore, nullptr);
+
+    mSwapChain.Destroy();
+    
+    vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
+
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     DestroyDebugReportCallbackEXT(mInstance, mCallback, nullptr);
@@ -246,7 +289,7 @@ namespace lava
           mQueues.GraphicsFamily = static_cast<int>(i);
 
         VkBool32 lIsPresentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(lCurrentDevice, i, mSwapChain.mSurface, &lIsPresentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(lCurrentDevice, static_cast<uint32_t>(i), mSwapChain.mSurface, &lIsPresentSupport);
 
         if (lCurrentQueueFamily.queueCount > 0 && lIsPresentSupport)
           mQueues.PresentFamily = static_cast<int>(i);
@@ -354,7 +397,7 @@ namespace lava
 
   VkCommandBuffer CDevice::BeginSingleExecutionCommand()
   {
-    VkCommandBuffer lCommandBuffer;
+    VkCommandBuffer lCommandBuffer = nullptr;
 
     vkNew( VkCommandBufferAllocateInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, lAllocInfo)
     lAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -381,5 +424,172 @@ namespace lava
     vkQueueWaitIdle(mQueues.Graphics);
 
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &aCommandBuffer);
+  }
+
+  void CDevice::CreateCommandBuffers()
+  {
+    const size_t lNumberOfFrameBuffers = mSwapChain.GetNumberOfFramebuffers();
+    mCommandBuffers.resize(lNumberOfFrameBuffers);
+
+    vkNew(VkCommandBufferAllocateInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, lAllocInfo);
+    lAllocInfo.commandPool = mCommandPool;
+    lAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    lAllocInfo.commandBufferCount = static_cast<uint32_t>(lNumberOfFrameBuffers);
+
+    vkCall(vkAllocateCommandBuffers(mDevice, &lAllocInfo, mCommandBuffers.data()));
+
+    for (size_t i = 0; i < mCommandBuffers.size(); ++i)
+    {
+      vkNew(VkCommandBufferBeginInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, lBeginInfo);
+
+      lBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+      vkBeginCommandBuffer(mCommandBuffers[i], &lBeginInfo);
+
+      vkNew(VkRenderPassBeginInfo, VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, lRenderPassInfo);
+
+      lRenderPassInfo.renderPass = mSwapChain.GetRenderPass();
+      lRenderPassInfo.framebuffer = mSwapChain.GetFramebufferByIdx(i);
+      lRenderPassInfo.renderArea.offset = { 0, 0 };
+      lRenderPassInfo.renderArea.extent = mSwapChain.GetExtent2D();
+
+      std::array<VkClearValue, 2> clearValues = {};
+      clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.1f };
+      clearValues[1].depthStencil = { 1.0f, 0 };
+
+      lRenderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+      lRenderPassInfo.pClearValues = clearValues.data();
+
+      vkCmdBeginRenderPass(mCommandBuffers[i], &lRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      vkCmdEndRenderPass(mCommandBuffers[i]);
+
+      vkCall(vkEndCommandBuffer(mCommandBuffers[i]));
+
+      vkNew(VkSubmitInfo, VK_STRUCTURE_TYPE_SUBMIT_INFO, lSubmitInfo);
+
+      lSubmitInfo.commandBufferCount = 1;
+      lSubmitInfo.pCommandBuffers = &mCommandBuffers[0];
+
+      vkCall(vkQueueSubmit(mQueues.Graphics, 1, &lSubmitInfo, mFences[i]));
+    }
+  }
+
+  void CDevice::CreateFences()
+  {
+    vkNew(VkFenceCreateInfo, VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, lCreateInfo);
+
+    // We need this so we can wait for them on the first try
+    lCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    const size_t lNumberOfFrameBuffers = mSwapChain.GetNumberOfFramebuffers();
+    mFences.resize(lNumberOfFrameBuffers);
+
+    for (size_t i = 0; i < lNumberOfFrameBuffers; ++i)
+      vkCall(vkCreateFence(mDevice, &lCreateInfo, nullptr, &mFences[i]));
+    
+    vkResetFences(mDevice, static_cast<uint32_t>(mFences.size()), mFences.data());
+  }
+
+  void CDevice::CreateRenderSemaphore()
+  {
+    vkNew(VkSemaphoreCreateInfo, VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, lCreateInfo);
+    vkCall(vkCreateSemaphore(mDevice, &lCreateInfo, nullptr, &mRenderFinishedSemaphore));
+  }
+
+  void CDevice::BeginFrame(const CCamera& aRenderingCamera)
+  {
+    mCurrentImageIndex = mSwapChain.GetNextImage();
+    
+    vkWaitForFences(mDevice, 1, &mFences[mCurrentImageIndex], VK_TRUE, UINT64_MAX);
+    vkResetFences(mDevice, 1, &mFences[mCurrentImageIndex]);
+
+    vkNew(VkCommandBufferBeginInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, lBeginInfo);
+    lBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+    vkBeginCommandBuffer(mCommandBuffers[mCurrentImageIndex], &lBeginInfo);
+
+    vkNew(VkRenderPassBeginInfo, VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, lRenderpassInfo);
+
+    lRenderpassInfo.renderPass = mSwapChain.GetRenderPass();
+    lRenderpassInfo.framebuffer = mSwapChain.GetFramebufferByIdx(mCurrentImageIndex);
+    lRenderpassInfo.renderArea.offset = { 0, 0 };
+    lRenderpassInfo.renderArea.extent = mSwapChain.GetExtent2D();
+
+    std::array<VkClearValue, 2> clearValues = {};
+    if (aRenderingCamera.GetClearMode() == CCamera::ClearMode::eSolidColor)
+    {
+      const float3& lClearColor = aRenderingCamera.GetClearColor();
+      std::memcpy(&clearValues[0].color, &lClearColor.x, sizeof(float) * 4);
+    }
+    else
+      clearValues[0].color = { 0.25f, 0.25f, 0.25f, 1.0f };
+    clearValues[1].depthStencil = { 1.0f, 0 };
+
+    lRenderpassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    lRenderpassInfo.pClearValues = clearValues.data();
+
+    VkViewport viewport = {};
+    const float4& lCameraViewport = aRenderingCamera.GetViewport();
+    viewport.x = lCameraViewport.x;
+    viewport.y = lCameraViewport.y;
+    viewport.width = lCameraViewport.z;
+    viewport.height = lCameraViewport.w;
+    vkCmdSetViewport(mCommandBuffers[mCurrentImageIndex], 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.extent = VkExtent2D{ (uint32_t)viewport.width, (uint32_t)viewport.height };
+    vkCmdSetScissor(mCommandBuffers[mCurrentImageIndex], 0, 1, &scissor);
+
+    vkCmdBeginRenderPass(mCommandBuffers[mCurrentImageIndex], &lRenderpassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  }
+
+  void CDevice::EndFrame()
+  {
+    vkCmdEndRenderPass(mCommandBuffers[mCurrentImageIndex]);
+
+    vkCall(vkEndCommandBuffer(mCommandBuffers[mCurrentImageIndex]));
+
+    vkNew(VkSubmitInfo, VK_STRUCTURE_TYPE_SUBMIT_INFO, lSubmitInfo);
+
+    VkSemaphore waitSemaphores[] = { mSwapChain.GetImageAvailableSemaphore() };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+    lSubmitInfo.waitSemaphoreCount = 1;
+    lSubmitInfo.pWaitSemaphores = waitSemaphores;
+    lSubmitInfo.pWaitDstStageMask = waitStages;
+
+    lSubmitInfo.commandBufferCount = 1;
+    lSubmitInfo.pCommandBuffers = &mCommandBuffers[mCurrentImageIndex];
+
+    VkSemaphore signalSemaphores[] = { mRenderFinishedSemaphore };
+    lSubmitInfo.signalSemaphoreCount = 1;
+    lSubmitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkCall(vkQueueSubmit(mQueues.Graphics, 1, &lSubmitInfo, mFences[mCurrentImageIndex]));
+
+    vkNew(VkPresentInfoKHR, VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, lPresentInfo);
+
+    lPresentInfo.waitSemaphoreCount = 1;
+    lPresentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR lSwapChains[] = { mSwapChain.mSwapChain };
+    lPresentInfo.swapchainCount = 1;
+    lPresentInfo.pSwapchains = lSwapChains;
+
+    lPresentInfo.pImageIndices = &mCurrentImageIndex;
+
+    vkCall( vkQueuePresentKHR(mQueues.Present, &lPresentInfo) );
+
+    /*
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+      recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) {
+      throw std::runtime_error("failed to present swap chain image!");
+    }
+    */
+
+    vkQueueWaitIdle(mQueues.Present);
   }
 }

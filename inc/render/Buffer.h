@@ -67,7 +67,7 @@ namespace lava
       vkCmdCopyBuffer(_commandBuffer, mBuffer, other.mBuffer, 1, &copyRegion);
     }
 
-    void update(VkDevice _device, VkDeviceSize _size, void* _data )
+    void update(VkDevice _device, VkDeviceSize , void* _data )
     {
       void* mapping = nullptr;
       vkCall(vkMapMemory(_device, mMemory, 0, mSize, 0, &mapping));

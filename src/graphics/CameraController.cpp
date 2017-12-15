@@ -5,24 +5,24 @@
 
 namespace lava
 {
-  void CameraController::setControllCamera(Camera*_camera)
+  void CCameraController::setControllCCamera(CCamera*_CCamera)
   {
-    mCamera = _camera;
+    mCCamera = _CCamera;
   }
 
-  void CameraController::update(float _dt)
+  void CCameraController::update(float _dt)
   {
     ImGuiIO& io = ImGui::GetIO();
     if (io.MouseDown[1])
     {
-      // Obtain the basis of the camera
-      glm::vec3 forward = glm::normalize(mCamera->lookAt() - mCamera->eye());
+      // Obtain the basis of the CCamera
+      glm::vec3 forward = glm::normalize(mCCamera->lookAt() - mCCamera->eye());
       glm::vec3 up(0.0, 0.0, 1.0);
       glm::vec3 right = glm::cross(forward, up);
       // Make it orthogonal
       up = glm::cross(right, forward);
 
-      // Movement of the camera
+      // Movement of the CCamera
       float velocity = (io.KeyShift) ? mShiftSpeed : mSpeed;
       float forwardAmount = (io.KeysDown[87]) ? 1.0f : 0.0f + (io.KeysDown[83]) ? -1.0f : 0.0f;
       float horizontalAmount = (io.KeysDown[68]) ? 1.0f : 0.0f + (io.KeysDown[65]) ? -1.0f : 0.0f;
@@ -34,17 +34,17 @@ namespace lava
         glm::vec3 upAxis = up * verticalAmount;
         glm::vec3 displacement = glm::normalize(forwardAxis + rightAxis + upAxis);
 
-        mCamera->eye() = mCamera->eye() + velocity * displacement;
+        mCCamera->eye() = mCCamera->eye() + velocity * displacement;
       }
 
-      // Rotation of the camera
+      // Rotation of the CCamera
       glm::quat yawQuat = glm::angleAxis(io.MouseDelta.x * mXSpeed, up);
       glm::quat pitchQuat = glm::angleAxis(io.MouseDelta.y * mYSpeed, right);
 
       forward = glm::cross(pitchQuat, yawQuat)*forward;
 
-      mCamera->lookAt() = mCamera->eye() + forward;
-      mCamera->up() = up;
+      mCCamera->lookAt() = mCCamera->eye() + forward;
+      mCCamera->up() = up;
     }
   }
 }

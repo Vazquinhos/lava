@@ -213,10 +213,11 @@ namespace lava
 
     vkCmdCopyBufferToImage(commandBuffer, lStagingBuffer, mImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
+    lDevice.EndSingleExecutionCommand(commandBuffer);
+
     vkDestroyBuffer(lLogicalDevice, lStagingBuffer, nullptr);
     vkFreeMemory(lLogicalDevice, lStagingMemory, nullptr);
 
-    lDevice.EndSingleExecutionCommand(commandBuffer);
     Transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
 }

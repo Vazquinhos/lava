@@ -1,6 +1,6 @@
 workspace "lava"
    language "C++"
-   configurations { "Debug", "Release" }
+   configurations { "Debug", "Release", "Final" }
    platforms { "x64" }
    location "vs"
    buildoptions '/std:c++latest'
@@ -10,12 +10,17 @@ workspace "lava"
    debugdir "../data"
    
    filter "configurations:Debug"
-      defines { "DEBUG" }
+      defines { "DEBUG", "ENABLE_LOGGING" }
 	  rtti ("off")
 	  characterset ("MBCS")
 	  symbols "on"
 
    filter "configurations:Release"
+      defines { "NO_DEBUG", "ENABLE_LOGGING" }
+	  rtti ("off")
+      optimize "On"
+
+   filter "configurations:Final"
       defines { "NO_DEBUG" }
 	  rtti ("off")
       optimize "On"
@@ -75,7 +80,6 @@ project "lavaEngine"
 	
 	links
 	{
-		"vlk",
 		"vulkan-1",
 		"assimp",
 		"imgui",
@@ -87,23 +91,7 @@ project "vazk"
 	kind "StaticLib"
 	files {"../external/vazk/vazk/**.hpp", "../external/vazk/vazk/**.cpp"}
 	includedirs { "../external/vazk/vazk" }
-	
-project "vlk"
-	kind "StaticLib"
-	files {"../external/VulkanSascha/base/**.hpp", "../external/VulkanSascha/base/**.cpp"}
-	includedirs 
-	{ 
-		"../external/vulkan/inc/",
-		"../external/vulkanhpp/",
-		"../external/glm/",
-		"../external/VulkanSascha/base"
-	}
-	
-	defines
-	{
-		"VK_USE_PLATFORM_WIN32_KHR"
-	}
-	
+
 project "imgui"
 	kind "StaticLib"
 	files {"../external/imgui/**.h", "../external/imgui/**.cpp", "../external/imguizmo/**.h", "../external/imguizmo/**.cpp"}

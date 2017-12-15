@@ -29,6 +29,29 @@ namespace lava
     }
   }
 
+  uint32_t CSwapChain::GetNextImage()
+  {
+    CDevice& lDevice = CDevice::getInstance();
+    VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+
+    uint32_t lImageIndex = 0;
+    VkResult result = vkAcquireNextImageKHR(lLogicalDevice, mSwapChain, std::numeric_limits<uint64_t>::max(), mImageAvailableSemaphore, VK_NULL_HANDLE, &lImageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+      vkDeviceWaitIdle(lLogicalDevice);
+      Destroy();
+      Create();
+      return lImageIndex;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+      throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    return lImageIndex;
+  }
+
   void CSwapChain::ChooseSurfaceFormat()
   {
     if (mDetails.Formats.size() == 1 && mDetails.Formats[0].format == VK_FORMAT_UNDEFINED)
@@ -129,6 +152,7 @@ namespace lava
     CreateRenderPass();
     CreateDepth();
     CreateFrameBuffers();
+    CreateAcquireImageSemaphore();
   }
 
   void CSwapChain::CreateRenderPass()
@@ -263,10 +287,12 @@ namespace lava
 
   void CSwapChain::Destroy()
   {
-    mDepthImage.Destroy();
-
     CDevice& lDevice = CDevice::getInstance();
     VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+
+    vkDestroySemaphore(lLogicalDevice, mImageAvailableSemaphore, nullptr);
+
+    mDepthImage.Destroy();
 
     for( VkFramebuffer& lCurrentFrameBuffer : mFramebuffers )
       vkDestroyFramebuffer(lLogicalDevice, lCurrentFrameBuffer, nullptr);
@@ -282,5 +308,13 @@ namespace lava
   bool CSwapChain::IsComplete()
   {
     return !mDetails.Formats.empty() && !mDetails.PresentModes.empty();
+  }
+
+  void CSwapChain::CreateAcquireImageSemaphore()
+  {
+    CDevice& lDevice = CDevice::getInstance();
+    VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+    vkNew(VkSemaphoreCreateInfo, VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, lCreateInfo);
+    vkCall(vkCreateSemaphore(lLogicalDevice, &lCreateInfo, nullptr, &mImageAvailableSemaphore));
   }
 }

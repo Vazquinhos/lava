@@ -35,6 +35,12 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+
+typedef glm::vec2 float2;
+typedef glm::vec3 float3;
+typedef glm::vec4 float4;
+typedef glm::mat4 float4x4;
+
 #pragma warning( pop ) 
 
 #include "debug/Debug.h"
