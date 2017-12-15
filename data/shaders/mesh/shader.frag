@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-precision mediump float;
+//precision mediump float;
 
 layout(binding = 1) uniform LightUniformBuffer
 {
@@ -24,6 +24,8 @@ layout(location = 0) out vec4 outColor;
 
 void main()
 {
+	outColor = vec4(fragColor, 1.0);
+
 	vec4 lightPos = vec4(ubo.position.x, ubo.position.y, ubo.position.z,1);
 	vec4 lightDir = lightPos - fragWorldPos;
 	float distance = length(lightDir);
