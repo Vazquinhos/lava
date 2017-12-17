@@ -65,12 +65,12 @@ public:
     lava::Entity* entity = lava::World::getInstance().getNewEntity("cube");
     entity->addComponent<lava::Transform>();
     lava::VisualMesh* visualMesh = entity->addComponent<lava::VisualMesh>();
-    visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/cube.obj");
+    visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/cerebrus.fbx");
 
-    entity = lava::World::getInstance().getNewEntity("mitsuba");
-    entity->addComponent<lava::Transform>();
-    visualMesh = entity->addComponent<lava::VisualMesh>();
-    visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/mitsuba-sphere.obj");
+    //entity = lava::World::getInstance().getNewEntity("mitsuba");
+    //entity->addComponent<lava::Transform>();
+    //visualMesh = entity->addComponent<lava::VisualMesh>();
+    //visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/mitsuba-sphere.obj");
 
     entity = lava::World::getInstance().getNewEntity("point light");
     lava::Transform * trsf = entity->addComponent<lava::Transform>();
@@ -81,8 +81,9 @@ public:
     entity = lava::World::getInstance().getNewEntity("main camera");
     entity->addComponent<lava::Transform>();
     camera = entity->addComponent<lava::CCamera>();
-    camera->eye() = glm::vec3(2, 0, 2);
+    camera->eye() = glm::vec3(60, 0, 60);
     camera->lookAt() = glm::vec3(0);
+    camera->up() = glm::vec3(0, 1, 0);
     camera->viewport() = glm::vec4(0.0f, 0.0f, WIDTH, HEIGHT);
     camera->fov() = 60.0f;
 
@@ -177,7 +178,7 @@ private:
   void initMesh()
   {
     std::string inputfile;
-    int option = 3;
+    int option = 1;
     float scale = 1.0f;
     switch (option)
     {

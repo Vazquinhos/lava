@@ -62,10 +62,10 @@ namespace lava
 
     static void destroy()
     {
-      CDevice& lDevice = CDevice::getInstance();
+      CDevice& lDevice = CDevice::getInstance();  
       VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
-      vkDestroySampler(lLogicalDevice, sLinearSampler, nullptr);
       vkDestroySampler(lLogicalDevice, sPointSampler, nullptr);
+      vkDestroySampler(lLogicalDevice, sLinearSampler, nullptr);
     }
   };
 }
