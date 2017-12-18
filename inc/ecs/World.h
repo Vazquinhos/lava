@@ -6,11 +6,14 @@
 #include "Entity.h"
 
 #include <Singleton.hpp>
+#include <serialization/serialization.h>
 
 namespace lava
 {
   class World : public Singleton<World>
   {
+    SERIALIZABLE(World)
+
   public:
     World() = default;
     virtual ~World() = default;
@@ -44,7 +47,7 @@ namespace lava
     }
 
   private:
-    std::map< std::string, size_t > mEntitiesMap;
+    std::map<std::string, size_t> mEntitiesMap;
     std::vector< std::unique_ptr<Entity> > mEntities;
   };
 }
