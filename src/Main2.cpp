@@ -58,14 +58,34 @@ lava::AABB meshAABB;
 lava::CCamera* camera = nullptr;
 lava::CCameraController cameraController;
 
+#include "serialization\serialization.h"
+
+#include <cereal/archives/json.hpp>
+
+#include "ecs/World.h"
+#include "ecs/Entity.h"
+#include "ecs/Component.h"
+
+#include "serialization\ecs\Component.h"
+
 class HelloTriangleApplication {
 public:
   void run()
   {
     initWindow();
     initVulkan();
-    
+
     lava::Entity* entity = lava::World::getInstance().getNewEntity("cube");
+
+    {
+      std::ofstream os("prueba1.json");
+      cereal::JSONOutputArchive oarchive(os);
+
+      lava::CCamera cmp;
+
+      oarchive(cmp);
+    }
+
     entity->addComponent<lava::Transform>();
     lava::VisualMesh* visualMesh = entity->addComponent<lava::VisualMesh>();
     visualMesh->create(device, physicalDevice, commandPool, graphicsQueue, "meshes/cerebrus.fbx");

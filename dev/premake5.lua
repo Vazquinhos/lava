@@ -4,7 +4,8 @@ workspace "lava"
    platforms { "x64" }
    location "vs"
    buildoptions '/std:c++latest'
-   systemversion "10.0.15063.0"
+   systemversion "10.0.16299.0"
+   --systemversion "10.0.15063.0"
    
    targetdir "$(SolutionDir)bin/%{cfg.buildcfg}"
    debugdir "../data"
@@ -67,6 +68,7 @@ project "lavaEngine"
 		"../external/assimp/include/",
 		"../external/imguizmo/",
 		"../external/vazk/vazk",
+		"../external/cereal/include",
 		"../inc/",
 		"../external/VulkanSascha/base/"
 	}

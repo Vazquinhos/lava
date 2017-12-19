@@ -2,12 +2,15 @@
 
 #include "lava.h"
 
+#include "serialization/serialization.h"
+
 #include "ecs/Component.h"
 
 namespace lava
 {
   class CCamera : public Component
   {
+    SERIALIZABLE(CCamera)
   public:
     enum class ProjectionMode
     {
@@ -108,10 +111,10 @@ namespace lava
     const float4& GetViewport() const { return mViewport; }
 
   private:
-    glm::mat4 mView;
-    glm::mat4 mProjection;
-    glm::vec3 mEye;
-    glm::vec3 mLookAt;
+    glm::mat4 mView = float4x4(1);
+    glm::mat4 mProjection = float4x4(1);
+    glm::vec3 mEye = glm::vec3(20);
+    glm::vec3 mLookAt = glm::vec3(0, 0, 0);
     glm::vec3 mUp = glm::vec3(0, 0, 1);
     glm::vec4 mViewport = glm::vec4(0, 0, 800.0f, 600.0f);
     glm::vec4 mClearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
@@ -122,6 +125,9 @@ namespace lava
 
     ProjectionMode mProjectionMode = ProjectionMode::ePerspective;
     ClearMode mClearMode = ClearMode::eSolidColor;
+
+    CCamera& operator=(const CCamera&) = delete;  // Disallow copying
+    CCamera(const CCamera&) = delete;
   };
 
   Begin_Enum_String(CCamera::ProjectionMode)

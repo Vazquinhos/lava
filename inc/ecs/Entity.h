@@ -5,10 +5,14 @@
 #include "lava.h"
 #include "Component.h"
 
+#include "serialization/serialization.h"
+
 namespace lava
 {
   class Entity
   {
+    SERIALIZABLE(Entity)
+
   public:
     Entity() = default;
     virtual ~Entity() = default;

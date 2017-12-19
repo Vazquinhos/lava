@@ -13,3 +13,6 @@
 [submodule "external/imguizmo"]
 	path = external/imguizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "external/cereal"]
+	path = external/cereal
+	url = https://github.com/USCiLab/cereal.git
