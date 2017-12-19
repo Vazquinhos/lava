@@ -43,7 +43,7 @@ namespace lava
       vkDestroyShaderModule(_device, mShaderModule, nullptr);
     }
 
-    VkShaderModule shaderModule() const { return mShaderModule; }
+    VkShaderModule shaderModule() { return mShaderModule; }
 
   private:
     VkShaderModule        mShaderModule = VK_NULL_HANDLE;

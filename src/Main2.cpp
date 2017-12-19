@@ -29,6 +29,9 @@
 #include "graphics/CameraController.h"
 
 #include "ImGuizmo.h"
+#include "imgui/ImGui.h"
+
+lava::CImGuiPtr mImGui;
 
 
 static int WIDTH = 1280;
@@ -74,7 +77,7 @@ public:
 
     entity = lava::World::getInstance().getNewEntity("point light");
     lava::Transform * trsf = entity->addComponent<lava::Transform>();
-    trsf->position() = glm::vec3(10);
+    trsf->position() = glm::vec3(20);
     trsf->recompose();
     entity->addComponent<lava::Light>();
 
@@ -175,41 +178,6 @@ private:
     lava::CDevice::getInstance().EndSingleExecutionCommand(commandBuffer);
   }
 
-  void initMesh()
-  {
-    std::string inputfile;
-    int option = 1;
-    float scale = 1.0f;
-    switch (option)
-    {
-    case 1:
-      inputfile = +"meshes/cube.obj";
-      break;
-    case 2:
-      inputfile += "meshes/sponza.obj";
-      scale = 0.05f;
-      break;
-    case 3:
-      inputfile += "meshes/mitsuba-sphere.obj";
-      scale = 1.0f;
-      break;
-    case 4:
-      inputfile += "meshes/dragon.obj";
-      scale = 2.0f;
-      break;
-    case 5:
-      inputfile += "meshes/bunny.obj";
-      scale = 1.0f;
-      break;
-    case 6:
-      inputfile += "meshes/head.obj";
-      scale = 2.0f;
-      break;
-    }
-
-    mesh.create(device, physicalDevice, commandPool, graphicsQueue, inputfile );
-  }
-
   void initVulkan()
   {
     lava::CDevice& lDevice = lava::CDevice::getInstance();
@@ -223,8 +191,6 @@ private:
 
     sceneObjectPipeline.create(device, renderPass, swapChainExtent);
 
-    initMesh();
-
     //initImGui();
 
     createTextureSampler();
@@ -233,6 +199,9 @@ private:
 
     createDescriptorPool();
     createDescriptorSet();
+
+    mImGui = PImpl(lava::CImGui);
+    mImGui->Create(window);
   }
 
   void mainLoop()
@@ -251,25 +220,24 @@ private:
 
   void cleanup()
   {
-    lava::ImGuiShutdown();
+    //lava::ImGuiShutdown();
     lava::CDevice::getInstance().Destroy();
-
-    lava::Samplers::destroy();
-    texture.Destroy();
     
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
     uniformBuffer.destroy(device);
     uniformBufferLight.destroy(device);
-    
-    mesh.destroy(device);
+
+    texture.Destroy();
+    lava::Samplers::destroy();
+
 
     delete window;
   }
 
   void createTextureImage()
   {
-    texture.Create( "textures/uvchecker.png" );
+    texture.Create( "textures/t_cerberus_d.tga" );
     texture.SetSampler(lava::Samplers::sLinearSampler);
   }
 
@@ -399,8 +367,11 @@ private:
 
   void drawFrame()
   {
+    //mImGui->NewFrame();
+    //ImGui::ShowTestWindow();
+
     lava::CDevice::getInstance().BeginFrame(*camera);
-    
+
     lava::Transform* trsf = lava::World::getInstance().find("point light")->getComponent<lava::Transform>();
 
     lava::Light* light = lava::World::getInstance().find("point light")->getComponent<lava::Light>();
@@ -441,6 +412,8 @@ private:
         }
       }
     }
+
+    //mImGui->Render();
     lava::CDevice::getInstance().EndFrame();
   }
 };

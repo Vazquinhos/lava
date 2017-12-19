@@ -32,7 +32,7 @@ namespace lava
     
   private:
     glm::vec3 mColor = glm::vec3(1);
-    glm::vec2 mRangeAttenuation = glm::vec2(0.0f, 100.0f);
+    glm::vec2 mRangeAttenuation = glm::vec2(0.0f, 1000.0f);
     float mIntensity = 1.0f;
     Type mType = Type::ePoint;
   };

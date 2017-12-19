@@ -63,7 +63,7 @@ namespace lava
     lViewInfo.image = mImage;
     lViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     lViewInfo.format = aFormat;
-    lViewInfo.subresourceRange.aspectMask = aAspectFlags;
+    lViewInfo.subresourceRange.aspectMask = mAspectFlags;
     lViewInfo.subresourceRange.baseMipLevel = 0;
     lViewInfo.subresourceRange.levelCount = 1;
     lViewInfo.subresourceRange.baseArrayLayer = 0;

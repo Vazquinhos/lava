@@ -26,6 +26,7 @@ namespace lava
     const CSwapChain& GetSwapChain()       const { return mSwapChain; }
 
     void BeginFrame(const CCamera& aRenderingCamera);
+    uint32_t GetCurrentImageIndex() { return mCurrentImageIndex; }
     VkCommandBuffer GetFrameCommandBuffer() { return mCommandBuffers[mCurrentImageIndex]; }
     void EndFrame();
 
@@ -61,6 +62,7 @@ namespace lava
     uint32_t mCurrentImageIndex = 0;
 
     VkSemaphore mRenderFinishedSemaphore;
+
 
   private:
     void CreateInstance();

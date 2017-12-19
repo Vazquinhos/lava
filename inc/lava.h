@@ -63,25 +63,6 @@ typedef glm::mat4 float4x4;
 
 namespace lava
 {
-  static const int sQueueSlotCount = 3;
-  struct MemoryTypeInfo
-  {
-    bool deviceLocal = false;
-    bool hostVisible = false;
-    bool hostCoherent = false;
-    bool hostCached = false;
-    bool lazilyAllocated = false;
-
-    struct Heap
-    {
-      uint64_t size = 0;
-      bool deviceLocal = false;
-    };
-
-    Heap heap;
-    int index;
-  };
-
   template <typename T>
   T RoundToNextMultiple(const T a, const T multiple)
   {
@@ -118,4 +99,14 @@ namespace lava
   void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue);
   void copyBuffer(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void copyBufferToImage(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+#define DefinePImpl(ClassName) \
+  class ClassName; \
+  typedef std::shared_ptr<ClassName> ClassName##Ptr;
+
+#define PImpl(ClassName) std::make_shared<ClassName>();
+
+  DefinePImpl(Shader);
+  DefinePImpl(CImage);
+  DefinePImpl(CImGui);
 }

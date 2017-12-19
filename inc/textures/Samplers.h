@@ -10,12 +10,14 @@ namespace lava
     {
       eLinearRepeat = 0,
       ePointRepeat,
+      eFontRepeat,
 
       MAX
     };
 
     static VkSampler sLinearSampler;
     static VkSampler sPointSampler;
+    static VkSampler sFontSampler;
 
     static void create()
     {
@@ -58,6 +60,21 @@ namespace lava
 
         vkCall(vkCreateSampler(lLogicalDevice, &samplerInfo, nullptr, &sPointSampler));
       }
+
+      {
+        VkSamplerCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        info.minLod = -1000;
+        info.maxLod = 1000;
+        info.maxAnisotropy = 1.0f;
+        vkCall(vkCreateSampler(lLogicalDevice, &info, nullptr, &sFontSampler));
+      }
     }
 
     static void destroy()
@@ -66,6 +83,7 @@ namespace lava
       VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
       vkDestroySampler(lLogicalDevice, sPointSampler, nullptr);
       vkDestroySampler(lLogicalDevice, sLinearSampler, nullptr);
+      vkDestroySampler(lLogicalDevice, sFontSampler, nullptr);
     }
   };
 }

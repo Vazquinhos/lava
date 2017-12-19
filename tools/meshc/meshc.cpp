@@ -34,8 +34,7 @@ void compileMesh(const std::string& _meshPath)
     aiProcess_GenNormals |
     aiProcess_GenSmoothNormals |
     aiProcess_Triangulate |
-    aiProcess_JoinIdenticalVertices |
-    aiProcess_FlipUVs);
+    aiProcess_JoinIdenticalVertices);
 
   if (scene)
   {
@@ -68,7 +67,7 @@ void compileMesh(const std::string& _meshPath)
 
         if (scene->mMeshes[m]->HasTextureCoords(0))
         {
-          vertex.uv.x = 1.0f - scene->mMeshes[m]->mTextureCoords[0][v].x;
+          vertex.uv.x = scene->mMeshes[m]->mTextureCoords[0][v].x;
           vertex.uv.y = scene->mMeshes[m]->mTextureCoords[0][v].y;
         }
 

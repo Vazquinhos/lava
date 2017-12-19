@@ -22,21 +22,26 @@ layout(location = 2) in vec4 fragWorldPos;
 
 layout(location = 0) out vec4 outColor;
 
+vec4 ambient_light = vec4(0.2, 0.2, 0.2, 1.0);
+
 void main()
 {
-	outColor = vec4(fragColor, 1.0);
-
 	vec4 lightPos = vec4(ubo.position.x, ubo.position.y, ubo.position.z,1);
 	vec4 lightDir = lightPos - fragWorldPos;
 	float distance = length(lightDir);
     lightDir = lightDir / distance;
 
+	float attenuation = clamp( 1 - smoothstep( ubo.beginRange, ubo.endRange, distance ), 0.0, 1.0);
 	float NDotL = max(dot(vec4(fragColor,1),lightDir), 0.0);
 
 	vec4 diffuseContribuition = texture(texSampler, fragTexCoord) * NDotL * vec4(ubo.color,1);
-	diffuseContribuition = clamp(diffuseContribuition, 0.0, 1.0);
+	diffuseContribuition = clamp(diffuseContribuition * ubo.intensity * attenuation, 0.0, 1.0);
 
-	float attenuation = clamp( 1 - smoothstep( ubo.beginRange, ubo.endRange, distance ), 0.0, 1.0);
+	
 
-	outColor = texture(texSampler, fragTexCoord) * diffuseContribuition * ubo.intensity * attenuation;
+	outColor = texture(texSampler, fragTexCoord) * (diffuseContribuition + ambient_light) ;
+
+	outColor = clamp(outColor, 0.0, 1.0);
+
+	outColor = texture(texSampler, fragTexCoord);
 }

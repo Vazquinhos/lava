@@ -1,5 +1,6 @@
 #include "render/Device.h"
 #include "graphics/Camera.h"
+#include "imgui/Imgui.h"
 
 #include <Logger.hpp>
 #include <EnumStringConversor.hpp>

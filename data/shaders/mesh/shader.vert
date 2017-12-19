@@ -26,4 +26,5 @@ void main()
 	gl_Position.y = -1 * gl_Position.y;
     fragColor = mat3(transpose(inverse(ubo.model))) * inColor;
     fragTexCoord = inTexCoord;
+	fragTexCoord.y = 1-fragTexCoord.y;
 }
