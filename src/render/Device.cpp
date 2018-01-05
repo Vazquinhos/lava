@@ -1,6 +1,7 @@
 #include "render/Device.h"
 #include "graphics/Camera.h"
 #include "imgui/Imgui.h"
+#include "render/UniformBuffers.h"
 
 #include <Logger.hpp>
 #include <EnumStringConversor.hpp>
@@ -153,29 +154,7 @@ namespace lava
   {
     Log_Info
     ( 
-      "Initializing Engine\n"
-      "          _____    _____               _____                    _____           \n"
-      "         /\\    \\  /\\    \\             /\\    \\                  /\\    \\          \n"
-      "        /::\\____\\/::\\    \\           /::\\____\\                /::\\    \\         \n"
-      "       /:::/    /::::\\    \\         /:::/    /               /::::\\    \\        \n"
-      "      /:::/    /::::::\\    \\       /:::/    /               /::::::\\    \\       \n"
-      "     /:::/    /:::/\\:::\\    \\     /:::/    /               /:::/\\:::\\    \\      \n"
-      "    /:::/    /:::/__\\:::\\    \\   /:::/____/               /:::/__\\:::\\    \\     \n"
-      "   /:::/    /::::\\   \\:::\\    \\  |::|    |               /::::\\   \\:::\\    \\    \n"
-      "  /:::/    /::::::\\   \\:::\\    \\ |::|    |     _____    /::::::\\   \\:::\\    \\   \n"
-      " /:::/    /:::/\\:::\\   \\:::\\    \\|::|    |    /\\    \\  /:::/\\:::\\   \\:::\\    \\  \n"
-      "/:::/____/:::/  \\:::\\   \\:::\\____\\::|    |   /::\\____\\/:::/  \\:::\\   \\:::\\____\\ \n"
-      "\\:::\\    \\::/    \\:::\\  /:::/    /::|    |  /:::/    /\\::/    \\:::\\  /:::/    / \n"
-      " \\:::\\    \\/____/ \\:::\\/:::/    /|::|    | /:::/    /  \\/____/ \\:::\\/:::/    /  \n"
-      "  \\:::\\    \\       \\::::::/    / |::|____|/:::/    /            \\::::::/    /   \n"
-      "   \\:::\\    \\       \\::::/    /  |:::::::::::/    /              \\::::/    /    \n"
-      "    \\:::\\    \\      /:::/    /   \\::::::::::/____/               /:::/    /     \n"
-      "     \\:::\\    \\    /:::/    /     ~~~~~~~~~~                    /:::/    /      \n"
-      "      \\:::\\    \\  /:::/    /                                   /:::/    /       \n"
-      "       \\:::\\____\\/:::/    /                                   /:::/    /        \n"
-      "        \\::/    /\\::/    /                                    \\::/    /         \n"
-      "         \\/____/  \\/____/                                      \\/____/          \n"
-      "                                                                                \n"
+      "Initializing LAVA Engine\n"
       "github:https://github.com/Vazquinhos\n"
       "email:vazquinhos@gmail.com\n"
     );
@@ -190,10 +169,14 @@ namespace lava
     CreateFences();
     CreateCommandBuffers();
     CreateRenderSemaphore();
+    CreateDescriptorPool();
+    CreateUniformBuffers();
   }
 
   void CDevice::Destroy()
   {
+    vkDeviceWaitIdle(mDevice);
+
     vkWaitForFences(mDevice, static_cast<uint32_t>(mFences.size()), mFences.data(), VK_TRUE, UINT64_MAX);
     for (size_t i = 0; i < mFences.size(); ++i)
       vkDestroyFence(mDevice, mFences[i], nullptr);
@@ -204,7 +187,11 @@ namespace lava
     
     vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
 
+    DestroyUniformBuffers();
+
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+    vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
+
     vkDestroyDevice(mDevice, nullptr);
     DestroyDebugReportCallbackEXT(mInstance, mCallback, nullptr);
     vkDestroySurfaceKHR(mInstance, mSwapChain.mSurface, nullptr);
@@ -592,5 +579,52 @@ namespace lava
     */
 
     vkQueueWaitIdle(mQueues.Present);
+  }
+
+  void CDevice::CreateDescriptorPool()
+  {
+    std::array<VkDescriptorPoolSize, 3> poolSizes = {};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[0].descriptorCount = 1;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes[1].descriptorCount = 1;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[2].descriptorCount = 1;
+
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = 1;
+
+    vkCall(vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mDescriptorPool));
+  }
+
+  void CDevice::CreateUniformBuffers()
+  {
+    mPerFrameUniformBuffer.create
+    (
+      mDevice,
+      mPhysicalDevice,
+      sizeof(TransformUBO),
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+
+    mLightsUniformBuffer.create
+    (
+      mDevice,
+      mPhysicalDevice,
+      sizeof(LightUBO),
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+  }
+
+  void CDevice::DestroyUniformBuffers()
+  {
+    mPerFrameUniformBuffer.destroy(mDevice);
+    mLightsUniformBuffer.destroy(mDevice);
   }
 }

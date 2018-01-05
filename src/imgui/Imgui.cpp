@@ -6,7 +6,7 @@
 
 #include "render/Shader.h"
 #include "render/Device.h"
-#include "textures/Samplers.h"
+#include "render/Samplers.h"
 
 #include "render/Window.h"
 
@@ -314,17 +314,17 @@ namespace lava
     io.MouseDrawCursor = false;
 
     // Create the shaders that will render the gui
-    mVertexShader = PImpl(Shader);
-    mVertexShader->create(lLogicalDevice, __glsl_shader_vert_spv, sizeof(__glsl_shader_vert_spv));
-    mFragmentShader = PImpl(Shader);
-    mFragmentShader->create(lLogicalDevice, __glsl_shader_frag_spv, sizeof(__glsl_shader_frag_spv));
+    mVertexShader = Handle(CShader);
+    mVertexShader->Create(__glsl_shader_vert_spv, sizeof(__glsl_shader_vert_spv));
+    mFragmentShader = Handle(CShader);
+    mFragmentShader->Create(__glsl_shader_frag_spv, sizeof(__glsl_shader_frag_spv));
 
     unsigned char* pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
     size_t upload_size = width*height * 4 * sizeof(char);
 
-    mImage = PImpl(CImage);
+    mImage = Handle(CImage);
     mImage->Create(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     mImage->SetPixels(pixels);
 
@@ -411,11 +411,11 @@ namespace lava
     VkPipelineShaderStageCreateInfo stage[2] = {};
     stage[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    stage[0].module = mVertexShader->shaderModule();
+    //stage[0].module = mVertexShader->shaderModule();
     stage[0].pName = "main";
     stage[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stage[1].module = mFragmentShader->shaderModule();
+    //stage[1].module = mFragmentShader->shaderModule();
     stage[1].pName = "main";
 
     VkVertexInputBindingDescription binding_desc[1] = {};
@@ -642,8 +642,8 @@ namespace lava
     if (mPipelineLayout) { vkDestroyPipelineLayout(g_Device, mPipelineLayout, g_Allocator); mPipelineLayout = VK_NULL_HANDLE; }
     if (mPipeline) { vkDestroyPipeline(g_Device, mPipeline, g_Allocator); mPipeline = VK_NULL_HANDLE; }
 
-    mVertexShader->destroy(lLogicalDevice);
-    mFragmentShader->destroy(lLogicalDevice);
+    //mVertexShader->destroy(lLogicalDevice);
+    //mFragmentShader->destroy(lLogicalDevice);
 
     mImage->Destroy();
 

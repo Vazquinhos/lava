@@ -32,8 +32,8 @@ namespace lava
 
     VkSampler              mSampler;
     CImagePtr              mImage;
-    ShaderPtr              mVertexShader;
-    ShaderPtr              mFragmentShader;
+    CShaderPtr              mVertexShader;
+    CShaderPtr              mFragmentShader;
 
     Window*                mWindow = nullptr;
 

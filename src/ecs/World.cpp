@@ -2,13 +2,15 @@
 
 namespace lava
 {
-  void World::update(float _dt)
+  void CWorld::Update(float _dt)
   {
-
+    for (CEntityPtr lEntity : mEntities)
+      lEntity->Update(_dt);
   }
 
-  void World::render()
+  void CWorld::Render()
   {
-
+    for (CEntityPtr lEntity : mEntities)
+      lEntity->Render();
   }
 }

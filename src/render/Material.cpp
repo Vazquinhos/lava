@@ -1,33 +1,46 @@
-#include "render/Pipeline.h"
 #include "render/Material.h"
 
 #include "render/Shader.h"
 #include "render/Vertex.h"
 #include "render/UniformBuffers.h"
 
+#include "render/Device.h"
+#include "render/Technique.h"
+#include "render/Texture.h"
+
 namespace  lava
 {
-  void Material::addTexture(const std::string& _textureId, std::shared_ptr<Texture> _texture)
+  namespace
   {
-    MaterialTexture texture = { _textureId, _texture };
-    mTextures.push_back(texture);
+    struct SPossibleStages
+    {
+      VkShaderStageFlagBits mVulkanEnum;
+      CTechnique::Stage     mLavaEnum;
+    };
+
+    static std::vector < SPossibleStages > sOptions =
+    {
+      { VK_SHADER_STAGE_VERTEX_BIT, CTechnique::Stage::eVertexShader },
+      { VK_SHADER_STAGE_FRAGMENT_BIT, CTechnique::Stage::eFragmentShader },
+    };
   }
 
-  template< typename T >
-  void Material::addParameter(const std::string& _parameterId, T _parameter)
+  void CMaterial::SetTexture(Channel aChanel, CTexturePtr aTexture)
   {
-    MaterialParameter parameter = { _parameterId, std::make_any _parameter };
-    mParameters.push_back(parameter);
+    mTextures[static_cast<size_t>(aChanel)] = aTexture;
   }
 
-  void Material::bind(VkCommandBuffer commandBuffer)
+  void CMaterial::Bind(VkCommandBuffer aCommandBuffer)
   {
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, pDescriptorSets, 0, nullptr);
+    vkCmdBindPipeline(aCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+    vkCmdBindDescriptorSets(aCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout, 0, 1, &mDescriptorSet, 0, nullptr);
   }
 
-  void Material::create(VkDevice _device, VkRenderPass _renderPass, VkDescriptorPool _descriptorPool, VkExtent2D _swapChainExtent, MaterialType _type)
+  void CMaterial::Create()
   {
+    CDevice& lDevice = lava::CDevice::getInstance();
+    VkDevice lLogicalDevice = lDevice.GetLogicalDevice();
+
     VkDescriptorSetLayoutBinding uboLayoutBinding = {};
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorCount = 1;
@@ -35,40 +48,42 @@ namespace  lava
     uboLayoutBinding.pImmutableSamplers = nullptr;
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+    VkDescriptorSetLayoutBinding uboLightLayoutBinding = {};
+    uboLightLayoutBinding.binding = 1;
+    uboLightLayoutBinding.descriptorCount = 1;
+    uboLightLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLightLayoutBinding.pImmutableSamplers = nullptr;
+    uboLightLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.binding = 2;
     samplerLayoutBinding.descriptorCount = 1;
     samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, uboLightLayoutBinding };
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data();
 
-    vkCall(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &descriptorSetLayout));
+    vkCall(vkCreateDescriptorSetLayout(lLogicalDevice, &layoutInfo, nullptr, &mDescriptorSetLayout));
 
-    lava::Shader vs;
-    vs.create(_device, "shaders/mesh/vert.spv");
-
-    lava::Shader fs;
-    fs.create(_device, "shaders/mesh/frag.spv");
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vs.shaderModule();
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fs.shaderModule();
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+    std::vector<VkPipelineShaderStageCreateInfo> lStagesCreateInfo;
+    for (uint32_t i = 0; i < static_cast<uint32_t>(CTechnique::Stage::MAX); ++i)
+    {
+      SPossibleStages& lCurrentOption = sOptions[i];
+      CShaderPtr lShader = mTechnique->GetShader(lCurrentOption.mLavaEnum);
+      if (lShader != nullptr)
+      {
+        vkNew(VkPipelineShaderStageCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, lCreateInfo);
+        lCreateInfo.pName = "main";
+        lCreateInfo.module = lShader->GetShaderModule();
+        lCreateInfo.stage = lCurrentOption.mVulkanEnum;
+        lStagesCreateInfo.push_back(lCreateInfo);
+      }
+    }
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -86,17 +101,19 @@ namespace  lava
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+    const CSwapChain& lSwapChain = lDevice.GetSwapChain();
+    VkExtent2D lSwapChainExtent = lSwapChain.GetExtent2D();
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)_swapChainExtent.width;
-    viewport.height = (float)_swapChainExtent.height;
+    viewport.width = (float)lSwapChainExtent.width;
+    viewport.height = (float)lSwapChainExtent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = {};
     scissor.offset = { 0, 0 };
-    scissor.extent = _swapChainExtent;
+    scissor.extent = lSwapChainExtent;
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -146,16 +163,14 @@ namespace  lava
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+    pipelineLayoutInfo.pSetLayouts = &mDescriptorSetLayout;
 
-    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &layout) != VK_SUCCESS) {
-      throw std::runtime_error("failed to create pipeline layout!");
-    }
+    vkCall(vkCreatePipelineLayout(lLogicalDevice, &pipelineLayoutInfo, nullptr, &mLayout));
 
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.stageCount = static_cast<uint32_t>(lStagesCreateInfo.size());
+    pipelineInfo.pStages = lStagesCreateInfo.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -163,22 +178,53 @@ namespace  lava
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.layout = layout;
-    pipelineInfo.renderPass = _renderPass;
+    pipelineInfo.layout = mLayout;
+    pipelineInfo.renderPass = lSwapChain.GetRenderPass();
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    vkCall(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline));
+    vkCall(vkCreateGraphicsPipelines(lLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mPipeline));
 
-    vs.destroy(_device);
-    fs.destroy(_device);
-  }
+    VkDescriptorSetLayout layouts[] = { mDescriptorSetLayout };
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = lDevice.GetDescriptorPool();
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = layouts;
 
-  void Material::destroy(VkDevice _device)
-  {
+    vkCall(vkAllocateDescriptorSets(lLogicalDevice, &allocInfo, &mDescriptorSet));
+    
+    VkDescriptorBufferInfo bufferInfo = lDevice.GetPerFrameUBO().descriptorInfo();
+    VkDescriptorBufferInfo bufferInfoLight = lDevice.GetLightsUBO().descriptorInfo();
 
-    vkDestroyDescriptorSetLayout(_device, descriptorSetLayout, nullptr);
-    vkDestroyPipeline(_device, pipeline, nullptr);
-    vkDestroyPipelineLayout(_device, layout, nullptr);
+    VkDescriptorImageInfo imageInfo = mTextures[0]->GetDescriptor();
+
+    std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
+
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = mDescriptorSet;
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = mDescriptorSet;
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &bufferInfoLight;
+
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = mDescriptorSet;
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(lLogicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
   }
 }

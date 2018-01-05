@@ -1,35 +1,41 @@
 #pragma  once
 
-#include  "lava.h"
+#include  "ecs/Component.h"
 
 namespace  lava
 {
-  class Texture;
-  class Techinque;
-  class Material
+  class CMaterial : public CComponent
   {
+    SERIALIZABLE(CMaterial)
+
   public:
-    Material() = default;
-    virtual ~Material() = default;
+    enum class Channel
+    {
+      eAlbedo = 0,
+      eNormal,
+      eSpecular,
+      eRoughness,
+      eSelfIlum,
 
-    void addTexture(const std::string& _textureId, std::shared_ptr<Texture> _texture);
+      MAX
+    };
+  public:
+    CMaterial() = default;
+    virtual ~CMaterial() = default;
 
-    template< typename T >
-    void addParameter(const std::string& _parameterId, T _parameter);
+    static CComponent::Type GetType() { return CComponent::Type::eMaterial; }
+    virtual std::string GetComponentId() const { return std::string("Material"); }
 
-    void bind(VkCommandBuffer commandBuffer);
+    void SetTexture(Channel aChanel, CTexturePtr aTexture);
+    void SetTechnique(CTechniquePtr aTechnique) { mTechnique = aTechnique; }
 
-    void create(VkDevice _device, VkRenderPass _renderPass, VkDescriptorPool _descriptorPool, VkExtent2D _swapChainExtent, MaterialType _type);
-    
-    virtual void destroy(VkDevice _device);
+    template< typename T > void AddParameter(const std::string& aParameterId, T aParameter);
+
+    void Bind(VkCommandBuffer aCommandBuffer);
+
+    void Create();
 
   protected:
-
-    struct MaterialTexture
-    {
-      std::string textureId;
-      std::shared_ptr<Texture> data;
-    };
 
     struct MaterialParameter
     {
@@ -37,13 +43,24 @@ namespace  lava
       std::any _data;
     };
 
-    VkDescriptorSetLayout mDescriptorSetLayout;
-    Pipeline*             mPipeline;
-    std::vector< MaterialTexture > mTextures;
+    std::array< CTexturePtr, static_cast<size_t>(Channel::MAX)> mTextures;
     std::vector< MaterialParameter > mParameters;
-
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkPipelineLayout layout;
-    VkPipeline pipeline;
+    
+    CTechniquePtr mTechnique;
+    
+    VkDescriptorSet mDescriptorSet = nullptr;
+    VkDescriptorSetLayout mDescriptorSetLayout = nullptr;
+    VkPipelineLayout mLayout = nullptr;
+    VkPipeline mPipeline = nullptr;
   };
+
+  Begin_Enum_String(CMaterial::Channel)
+  {
+    Register_Enum_String(CMaterial::Channel::eAlbedo, "Albedo");
+    Register_Enum_String(CMaterial::Channel::eNormal, "Normal");
+    Register_Enum_String(CMaterial::Channel::eSpecular, "Specular");
+    Register_Enum_String(CMaterial::Channel::eRoughness, "Roughness");
+    Register_Enum_String(CMaterial::Channel::eSelfIlum, "SelfIlum");
+  }
+  End_Enum_String;
 }

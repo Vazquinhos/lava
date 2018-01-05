@@ -1,7 +1,181 @@
 {
-    "value0": {
-        "Component": {
-            "type": "Camera"
-        }
+    "world": {
+        "entities": [
+            {
+                "polymorphic_id": 1073741824,
+                "ptr_wrapper": {
+                    "id": 2147483649,
+                    "data": {
+                        "name": "main camera",
+                        "components": [
+                            {
+                                "polymorphic_id": 2147483649,
+                                "polymorphic_name": "lava::Transform",
+                                "ptr_wrapper": {
+                                    "id": 2147483650,
+                                    "data": {
+                                        "translation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        },
+                                        "rotation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0,
+                                            "w": 1.0
+                                        },
+                                        "scale": {
+                                            "x": 1.0,
+                                            "y": 1.0,
+                                            "z": 1.0
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "polymorphic_id": 2147483650,
+                                "polymorphic_name": "lava::CCamera",
+                                "ptr_wrapper": {
+                                    "id": 2147483651,
+                                    "data": {
+                                        "projection": "Perspective",
+                                        "viewport": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 800.0,
+                                            "w": 600.0
+                                        },
+                                        "clear_mode": "Solid Color",
+                                        "clear_color": {
+                                            "x": 0.10000000149011612,
+                                            "y": 0.10000000149011612,
+                                            "z": 0.10000000149011612,
+                                            "w": 1.0
+                                        },
+                                        "fov": 60.0,
+                                        "near": 0.10000000149011612,
+                                        "far": 1000.0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "polymorphic_id": 1073741824,
+                "ptr_wrapper": {
+                    "id": 2147483652,
+                    "data": {
+                        "name": "sun",
+                        "components": [
+                            {
+                                "polymorphic_id": 1,
+                                "ptr_wrapper": {
+                                    "id": 2147483653,
+                                    "data": {
+                                        "translation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        },
+                                        "rotation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0,
+                                            "w": 1.0
+                                        },
+                                        "scale": {
+                                            "x": 1.0,
+                                            "y": 1.0,
+                                            "z": 1.0
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "polymorphic_id": 1073741824,
+                "ptr_wrapper": {
+                    "id": 2147483654,
+                    "data": {
+                        "name": "cerebrus",
+                        "components": [
+                            {
+                                "polymorphic_id": 1,
+                                "ptr_wrapper": {
+                                    "id": 2147483655,
+                                    "data": {
+                                        "translation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        },
+                                        "rotation": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0,
+                                            "w": 1.0
+                                        },
+                                        "scale": {
+                                            "x": 1.0,
+                                            "y": 1.0,
+                                            "z": 1.0
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "polymorphic_id": 2147483651,
+                                "polymorphic_name": "lava::CMaterial",
+                                "ptr_wrapper": {
+                                    "id": 2147483656,
+                                    "data": {
+                                        "textures": [
+                                          {
+                                            "channel": "Albedo",
+                                            "filename": "t_cerberus_d.tga"
+                                          }
+                                        ],
+                                        "technique": {
+                                            "polymorphic_id": 1073741824,
+                                            "ptr_wrapper": {
+                                                "id": 2147483657,
+                                                "data": {
+                                                    "shaders": [
+                                                        {
+                                                            "stage": "VS",
+                                                            "filename": "mesh/vert.spv"
+                                                        },
+                                                        {
+                                                          "stage": "FS",
+                                                          "filename": "mesh/frag.spv"
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "polymorphic_id": 2147483652,
+                                "polymorphic_name": "lava::CMeshRenderer",
+                                "ptr_wrapper": {
+                                    "id": 2147483658,
+                                    "data": {
+                                        "mesh_id": "cerebrus.fbx"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
     }
 }

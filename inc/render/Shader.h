@@ -4,48 +4,21 @@
 
 namespace lava
 {
-  class Shader
+  class CShader
   {
   public:
-    Shader() = default;
-    virtual ~Shader() = default;
+    CShader() = default;
+    virtual ~CShader() = default;
 
-    bool create(VkDevice _device, const void* _shaderContents, const size_t _size)
-    {
-      VkShaderModuleCreateInfo moduleCreateInfo{};
-      moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      moduleCreateInfo.codeSize = _size;
-      moduleCreateInfo.pCode = static_cast<const uint32_t*> (_shaderContents);
-      return vkCreateShaderModule(_device, &moduleCreateInfo, nullptr, &mShaderModule) == VK_SUCCESS;
-    }
+    void Create(const void* _shaderContents, const size_t _size);
+    void Destroy();
 
-    bool create(VkDevice _device, const char* _shaderFilename)
-    {
-      size_t shaderSize = 0;
-      char* shaderCode = nullptr;
-      std::ifstream is(_shaderFilename, std::ios::binary | std::ios::in | std::ios::ate);
-      if (is.is_open())
-      {
-        shaderSize = is.tellg();
-        is.seekg(0, std::ios::beg);
-        shaderCode = new char[shaderSize];
-        is.read(shaderCode, shaderSize);
-        is.close();
-        assert(shaderSize > 0);
-      }
-      bool ok = create(_device, shaderCode, shaderSize);
-      delete[] shaderCode;
-      return ok;
-    }
-
-    virtual void destroy(VkDevice _device)
-    {
-      vkDestroyShaderModule(_device, mShaderModule, nullptr);
-    }
-
-    VkShaderModule shaderModule() { return mShaderModule; }
+    const std::string& GetId() const { return mFilename; }
+    VkShaderModule GetShaderModule() const { return mShaderModule; }
 
   private:
     VkShaderModule        mShaderModule = VK_NULL_HANDLE;
+
+    std::string mFilename;
   };
 }

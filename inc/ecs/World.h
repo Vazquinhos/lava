@@ -6,48 +6,56 @@
 #include "Entity.h"
 
 #include <Singleton.hpp>
-#include <serialization/serialization.h>
 
 namespace lava
 {
-  class World : public Singleton<World>
+  class CWorld : public Singleton<CWorld>
   {
-    SERIALIZABLE(World)
+    SERIALIZABLE(CWorld)
 
   public:
-    World() = default;
-    virtual ~World() = default;
+    CWorld() = default;
+    virtual ~CWorld() = default;
 
-    void update(float _dt);
-    void render();
+    void Update(float _dt);
+    void Render();
 
-    Entity* getNewEntity( const std::string& _name )
-    {
-      mEntities.emplace_back(std::make_unique<Entity>());
-      Entity* entity = mEntities[mEntities.size() - 1].get();
-      entity->name() = _name;
-      mEntitiesMap[_name] = mEntities.size() - 1;
-      return entity;
-    }
-
-    const size_t length() const
+    const size_t GetNumberOfEntities() const
     {
       return mEntities.size();
     }
 
-    Entity* find(const std::string& _name) const
+    CEntityPtr GetEntityByIdx(const size_t idx) const
     {
-      std::map< std::string, size_t >::const_iterator it = mEntitiesMap.find(_name);
-      return (it == mEntitiesMap.end() ) ? nullptr : at(it->second);
+      return mEntities[idx];
     }
 
-    Entity* at(const size_t idx) const
+    void AddEntity(CEntityPtr aEntity)
     {
-      return mEntities[idx].get();
+      if (aEntity != nullptr)
+      {
+        const size_t idx = mEntities.size();
+        mEntities.emplace_back(aEntity);
+        mMapEntities[aEntity->GetName()] = idx;
+      }
+    }
+
+    CEntityPtr GetEntity(const std::string& aName)
+    {
+      auto lIt = mMapEntities.find(aName);
+      if (lIt != mMapEntities.end())
+        return mEntities[lIt->second];
+      return nullptr;
     }
 
   private:
-    std::map<std::string, size_t> mEntitiesMap;
-    std::vector< std::unique_ptr<Entity> > mEntities;
+    std::unordered_map<std::string, size_t> mMapEntities;
+    std::vector<CEntityPtr> mEntities;
+
+    void Refresh()
+    {
+      for (size_t i = 0, lCount = mEntities.size(); i < lCount; ++i)
+        mMapEntities[mEntities[i]->GetName()] = i;
+    }
   };
 }

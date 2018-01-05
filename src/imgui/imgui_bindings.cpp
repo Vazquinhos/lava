@@ -9,10 +9,8 @@
 #include "ecs/World.h"
 #include "graphics/Transform.h"
 
-#include "textures/Texture.h"
+#include "render/Texture.h"
 
-#include "graphics/visuals/Visual.h"
-#include "graphics/visuals/VisualMesh.h"
 #include "graphics/AABB.h"
 
 namespace lava
@@ -29,6 +27,7 @@ namespace lava
     static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
   }
 
+  /*
   void InspectVisual(Visual* _visual)
   {
     if (ImGui::CollapsingHeader("Visual"))
@@ -53,6 +52,7 @@ namespace lava
       }
     }
   }
+  */
 
   void Editor()
   {
@@ -73,6 +73,7 @@ namespace lava
 
   void Hiearchy()
   {
+    /*
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0, sMenuBarHeight));
     ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.15f, io.DisplaySize.y - sToolBarHeight - sMenuBarHeight ));
@@ -82,15 +83,16 @@ namespace lava
     const size_t numEntities = world.length();
     for (size_t i = 0; i < numEntities; ++i)
     {
-      Entity* currentEntity = world.at(i);
+      CEntity* currentEntity = world.at(i);
 
       bool isPressed = sInspectedEntity == i;
-      ImGui::BoolButton(currentEntity->name().c_str(), &isPressed);
+      //ImGui::BoolButton(currentEntity->name().c_str(), &isPressed);
 
       if (sInspectedEntity != i && isPressed)
         sInspectedEntity = i;
     }
     ImGui::End();
+    */
   }
 
   void Inspector()
@@ -103,35 +105,37 @@ namespace lava
     ImGui::Separator();
 
    
-    Entity* entity = lava::World::getInstance().at(sInspectedEntity);
+    //CEntity* entity = lava::World::getInstance().at(sInspectedEntity);
 
-    ImGui::Text("Name: %s", entity->name().c_str());
-    ImGui::Checkbox("Active", &entity->active());
-    const size_t numComponents = entity->length();
-    for (size_t i = 0; i < numComponents; ++i)
+    //ImGui::Text("Name: %s", entity->name().c_str());
+    //::Checkbox("Active", &entity->active());
+    //const size_t numComponents = entity->length();
+    /*for (size_t i = 0; i < numComponents; ++i)
     {
-      Component* currentComponent = entity->at(i);
+      CComponentPtr currentComponent = (*entity)[0];
       switch (currentComponent->type())
       {
-      case Component::Type::eTransform:
-        InspectTransform(static_cast<Transform*>(currentComponent));
+      case CComponent::Type::eTransform:
+        //InspectTransform(std<Transform*>(currentComponent));
         break;
-      case Component::Type::eCamera:
-        InspectCCamera(static_cast<CCamera*>(currentComponent));
+      case CComponent::Type::eCamera:
+        //InspectCCamera(static_cast<CCamera*>(currentComponent));
         break;
-      case Component::Type::eLight:
-        InspectLight(static_cast<Light*>(currentComponent));
+      case CComponent::Type::eLight:
+        //InspectLight(static_cast<Light*>(currentComponent));
         break;
-      case Component::Type::eVisual:
-        InspectVisual(static_cast<Visual*>(currentComponent));
+      case CComponent::Type::eVisual:
+        //InspectVisual(static_cast<Visual*>(currentComponent));
         break;
       }
     }
+    */
     ImGui::End();
   }
 
-  void InspectTransform(Transform* _trsf)
+  void InspectTransform(Transform*)
   {
+    /*
     if (ImGui::CollapsingHeader("Transform"))
     {
       World& world = lava::World::getInstance();
@@ -139,7 +143,7 @@ namespace lava
 
       if (mainCCameraEntity != nullptr)
       {
-        CCamera* CCameraCmp = mainCCameraEntity->getComponent<CCamera>();
+        /*CCameraPtr CCameraCmp = mainCCameraEntity.getComponent<CCamera>();
         glm::mat4 view = CCameraCmp->view();
         glm::mat4 prj = CCameraCmp->proj();
         ImGuiIO& io = ImGui::GetIO();
@@ -185,7 +189,11 @@ namespace lava
       //ImGui::Float3("Rotation", _trsf->rotation());
       ImGui::Float3("Scale", _trsf->scale());
       _trsf->recompose();
+      
     }
+
+
+    */
   }
 
   void InspectCCamera(CCamera* _CCamera)
@@ -195,8 +203,8 @@ namespace lava
         ImGui::EnumCombo("Projection", _CCamera->mode());
         ImGui::EnumCombo("Clear Mode", _CCamera->clearMode());
 
-        if (_CCamera->clearMode() == CCamera::ClearMode::eSolidColor)
-          ImGui::ColorEdit4("Solid Color", &_CCamera->clearColor().x);
+        //if (_CCamera->clearMode() == CCamera::ClearMode::eSolidColor)
+//          ImGui::ColorEdit4("Solid Color", &_CCamera->clearColor().x);
 
         ImGui::DragFloat3("Eye", &_CCamera->eye().x, 0.5f);
         ImGui::DragFloat3("Up", &_CCamera->up().x, 0.5f);

@@ -6,7 +6,7 @@
 
 namespace lava
 {
-  class Light: public Component
+  class Light: public CComponent
   {
   public:
     enum class Type
@@ -18,12 +18,11 @@ namespace lava
       MAX
     };
   public:
-    Light()
-      : Component(Component::Type::eLight)
-    {
-
-    }
+    Light() = default;
     virtual ~Light() = default;
+
+    static CComponent::Type GetType() { return CComponent::Type::eLight; }
+    virtual std::string GetComponentId() const { return std::string("Light"); }
 
     Type& type() { return mType; }
     glm::vec3& color() { return mColor; }

@@ -1,7 +1,7 @@
 #include "graphics/CameraController.h"
 #include "graphics/Camera.h"
 
-#include "imgui/imgui_impl.h"
+//#include "imgui/imgui_impl.h"
 
 namespace lava
 {
@@ -12,6 +12,7 @@ namespace lava
 
   void CCameraController::update(float _dt)
   {
+    /*
     ImGuiIO& io = ImGui::GetIO();
     if (io.MouseDown[1])
     {
@@ -45,6 +46,7 @@ namespace lava
 
       mCCamera->lookAt() = mCCamera->eye() + forward;
       mCCamera->up() = up;
-    }
+      
+    }*/
   }
 }

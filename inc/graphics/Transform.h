@@ -6,14 +6,18 @@
 
 namespace lava
 {
-  class Transform : public Component
+  class Transform : public CComponent
   {
+    SERIALIZABLE(Transform)
   public:
     Transform()
-      : Component(Type::eTransform)
+      : CComponent()
     {
       decompose();
     }
+
+    static CComponent::Type GetType() { return CComponent::Type::eTransform; }
+    virtual std::string GetComponentId() const { return std::string("Transform"); }
 
     virtual ~Transform() = default;
     

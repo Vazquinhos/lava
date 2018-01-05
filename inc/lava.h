@@ -1,6 +1,5 @@
 #pragma once
 #define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan.h>
 
 #include <vector>
@@ -61,6 +60,10 @@ typedef glm::mat4 float4x4;
 
 #define vkNew(VkStructure, VKEnum, lVariable) VkStructure lVariable = {}; lVariable.sType = VKEnum;
 
+#define SERIALIZABLE(ClassName) \
+template<class Archive > friend void load(Archive &, ClassName &);\
+template<class Archive > friend void save(Archive &, const ClassName &);
+
 namespace lava
 {
   template <typename T>
@@ -85,28 +88,34 @@ namespace lava
     eUv = 0x00000010,
   };
 
-  VULKAN_HPP_INLINE VertexFlags operator|(VertexFlags bit0, VertexFlags bit1)
+  inline VertexFlags operator|(VertexFlags bit0, VertexFlags bit1)
   {
     return VertexFlags(static_cast<VertexFlags>(static_cast<uint32_t>(bit0) | static_cast<uint32_t>(bit1)));
   }
-
-  class Device;
-  Device& deviceInstance();
-  void createDevice();
-  void destroyDevice();
 
   VkCommandBuffer beginSingleTimeCommands(VkDevice _device, VkCommandPool _cmdPool);
   void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue);
   void copyBuffer(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void copyBufferToImage(VkDevice _device, VkCommandPool _cmdPool, VkQueue _queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
-#define DefinePImpl(ClassName) \
+#define DefineHandle(ClassName) \
   class ClassName; \
   typedef std::shared_ptr<ClassName> ClassName##Ptr;
 
-#define PImpl(ClassName) std::make_shared<ClassName>();
+#define Handle(ClassName) std::make_shared<ClassName>()
 
-  DefinePImpl(Shader);
-  DefinePImpl(CImage);
-  DefinePImpl(CImGui);
+  DefineHandle(Shader);
+  DefineHandle(CImage);
+  DefineHandle(CImGui);
+  DefineHandle(CEntity);
+  DefineHandle(CMeshRenderer);
+  DefineHandle(CCamera);
+  DefineHandle(CComponent);
+  DefineHandle(CResource);
+  DefineHandle(CMesh);
+  DefineHandle(CTexture);
+  DefineHandle(CGeometry);
+  DefineHandle(CMaterial);
+  DefineHandle(CShader);
+  DefineHandle(CTechnique);
 }

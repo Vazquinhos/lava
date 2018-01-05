@@ -2,62 +2,76 @@
 
 #pragma once
 
+#include <Logger.hpp>
+
 #include "lava.h"
 #include "Component.h"
 
-#include "serialization/serialization.h"
-
 namespace lava
 {
-  class Entity
+  class CEntity
   {
-    SERIALIZABLE(Entity)
+    SERIALIZABLE(CEntity)
 
   public:
-    Entity() = default;
-    virtual ~Entity() = default;
-    
-    std::string& name() { return mName; }
-    bool& active() { return mActive; }
+    CEntity() = default;
+    virtual ~CEntity() = default;
 
-    const size_t length()
+    void Update(float _dt);
+    void Render();
+    
+    void SetName(const std::string& aName) { mName = aName; }
+    const std::string& GetName() const  { return mName; }
+    bool IsActive() const { return mActive; }
+    void SetActive(bool aActive) { mActive = aActive; }
+
+    const size_t GetNumberOfComponents() const
     {
       return mComponents.size();
     }
 
-    Component* at(const size_t idx)
+    CComponentPtr GetComponentByIdx(const size_t idx) const
     {
-      return mComponents[idx].get();
+      return mComponents[idx];
     }
 
-    template<typename TComponentType>
-    TComponentType* addComponent()
+    template<typename TComponentType> std::shared_ptr<TComponentType> AddComponent()
     {
-      TComponentType* componentRef = getComponent<TComponentType>();
-      if (componentRef != nullptr)
-        return componentRef;
-
-      const size_t idx = mComponents.size();
-      mComponents.emplace_back(std::make_unique<TComponentType>());
-      mMapComponents[typeid(TComponentType).hash_code()] = idx;
-
-      return static_cast<TComponentType*>(mComponents[idx].get());
+      static_assert(std::is_base_of<CComponent, TComponentType>::value);
+      std::shared_ptr<TComponentType> lComponent = GetComponent<TComponentType>();
+      if (lComponent != nullptr)
+      {
+        Log_Warning("The entity " + mName + "already has a component of type " + typeid(TComponentType).name());
+      }
+      else
+      {
+        const size_t idx = mComponents.size();
+        lComponent = Handle(TComponentType);
+        mComponents.emplace_back(lComponent);
+        mMapComponents[lComponent->GetComponentId()] = idx;
+      }
+      return lComponent;
     }
 
-    template<typename TComponentType>
-    TComponentType* getComponent()
+    template<typename TComponentType> std::shared_ptr<TComponentType> GetComponent()
     {
-      Component* componentRef = nullptr;
-      std::unordered_map<size_t, size_t>::const_iterator it = mMapComponents.find(typeid(TComponentType).hash_code());
-      if (it != mMapComponents.end())
-        componentRef = mComponents[it->second].get();
-      return static_cast<TComponentType*> (componentRef);
+      auto lIt = mMapComponents.find(EnumString<CComponent::Type>::asString(TComponentType::GetType()));
+      std::shared_ptr<TComponentType> lComponent = nullptr;
+      if (lIt != mMapComponents.end())
+        lComponent = std::static_pointer_cast<TComponentType>(mComponents[lIt->second]);
+      return lComponent;
     }
-    
+
   private:
-    std::unordered_map<size_t, size_t> mMapComponents;
-    std::vector<std::unique_ptr<Component>> mComponents;
+    std::unordered_map<std::string, size_t> mMapComponents;
+    std::vector<CComponentPtr> mComponents;
     std::string mName;
     bool mActive = true;
+
+    void Refresh()
+    {
+      for (size_t i = 0, lCount = mComponents.size(); i < lCount; ++i)
+        mMapComponents[mComponents[i]->GetComponentId()] = i;
+    }
   };
 }

@@ -12,7 +12,7 @@ namespace lava
     eFatal
   };
 
-  VULKAN_HPP_INLINE std::string to_string(MessageSeverity value)
+  inline std::string to_string(MessageSeverity value)
   {
     switch (value)
     {

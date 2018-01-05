@@ -2,13 +2,11 @@
 
 #include "lava.h"
 
-#include "serialization/serialization.h"
-
 #include "ecs/Component.h"
 
 namespace lava
 {
-  class CCamera : public Component
+  class CCamera : public CComponent
   {
     SERIALIZABLE(CCamera)
   public:
@@ -31,13 +29,13 @@ namespace lava
     };
 
   public:
-    CCamera()
-      : Component(Type::eCamera)
-    {
-    }
+    CCamera() = default;
     virtual ~CCamera() = default;
 
-    void updateMatrices()
+    static CComponent::Type GetType() { return CComponent::Type::eCamera; }
+    virtual std::string GetComponentId() const { return std::string("Camera"); }
+
+    virtual void Update(float)
     {
       mView = glm::lookAt(mEye, mLookAt, mUp);
       if (mProjectionMode == ProjectionMode::eOrthografic)
@@ -48,7 +46,7 @@ namespace lava
       }
       else
       {
-        mProjection = glm::perspective(glm::radians(mFov), mViewport.b/mViewport.a, mNear, mFar);
+        mProjection = glm::perspective(glm::radians(mFov), mViewport.b / mViewport.a, mNear, mFar);
       }
     }
 
@@ -97,8 +95,7 @@ namespace lava
     glm::vec3& lookAt() { return mLookAt; }
     glm::vec3& up() { return mUp; }
     glm::vec4& viewport() { return mViewport; }
-    glm::vec4& clearColor() { return mClearColor; }
-
+    
     float& fov() { return mFov; }
     float& nearPlane() { return mNear; }
     float& farPlane() { return mFar; }
@@ -113,11 +110,11 @@ namespace lava
   private:
     glm::mat4 mView = float4x4(1);
     glm::mat4 mProjection = float4x4(1);
-    glm::vec3 mEye = glm::vec3(20);
+    glm::vec3 mEye = glm::vec3(40);
     glm::vec3 mLookAt = glm::vec3(0, 0, 0);
-    glm::vec3 mUp = glm::vec3(0, 0, 1);
+    glm::vec3 mUp = glm::vec3(0, 1, 0);
     glm::vec4 mViewport = glm::vec4(0, 0, 800.0f, 600.0f);
-    glm::vec4 mClearColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+    glm::vec3 mClearColor = glm::vec3(0.1f, 0.1f, 0.1f);
     float mFov = 60.0f;
     float mAspect = 800.0f/600.0f;
     float mNear = 0.1f;

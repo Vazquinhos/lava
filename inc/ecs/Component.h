@@ -4,13 +4,11 @@
 
 #include "lava.h"
 
-#include "serialization/serialization.h"
-
 namespace lava
 {
-  class Component
+  class CComponent
   {
-    SERIALIZABLE(Component);
+    SERIALIZABLE(CComponent);
 
   public:
     enum class Type
@@ -18,40 +16,27 @@ namespace lava
       eTransform = 0,
       eCamera,
       eLight,
+      eMeshRenderer,
       eVisual,
       eMaterial,
 
       MAX
     };
   public:
-    Component(const Type& _type)
-      : mType(_type)
-    {
-    }
+    CComponent() = default;
+    virtual ~CComponent() = default;
 
-    Component()
-      : mType(Type::eTransform)
-    {
-
-    }
-    virtual ~Component() = default;
-
-    const Type& type() const { return mType; }
-
-  private:
-    Type mType;
-
-    Component& operator=(const Component&) = delete;  // Disallow copying
-    Component(const Component&) = delete;
+    virtual std::string GetComponentId() const = 0;
+    virtual void Update( float ) {}
   };
 
-  Begin_Enum_String(Component::Type)
+  Begin_Enum_String(CComponent::Type)
   {
-    Register_Enum_String(Component::Type::eLight, "Light");
-    Register_Enum_String(Component::Type::eCamera, "Camera");
-    Register_Enum_String(Component::Type::eTransform, "Transform");
-    Register_Enum_String(Component::Type::eVisual, "Visual");
-    Register_Enum_String(Component::Type::eMaterial, "Material");
+    Register_Enum_String(CComponent::Type::eLight, "Light");
+    Register_Enum_String(CComponent::Type::eCamera, "Camera");
+    Register_Enum_String(CComponent::Type::eTransform, "Transform");
+    Register_Enum_String(CComponent::Type::eVisual, "Visual");
+    Register_Enum_String(CComponent::Type::eMaterial, "Material");
   }
   End_Enum_String;
 }
