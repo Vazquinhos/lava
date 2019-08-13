@@ -113,18 +113,13 @@ void compileMesh(const std::string& _meshPath)
 int main(int argc, char* argv[])
 {
   // Check the number of parameters
-  if (argc < 3) {
-    // Tell the user how to run the program
-    std::cerr << "Usage: " << argv[0] << " meshc -p path" << std::endl;
-    /* "Usage messages" are a conventional way of telling the user
-    * how to run a program if they enter the command incorrectly.
-    */
-    return 1;
-  }
-
+	std::string path = "meshes/";
+	if (argc > 1)
+		path = argv[2];
+		
   std::cout << "***** Lava Mesh Compiler *****" << std::endl;
   fs::create_directories("compiled/meshes/");
-  for (auto & p : fs::directory_iterator(argv[2]))
+  for (auto & p : fs::directory_iterator(path))
   {
     std::cout << std::endl << "[" << __TIME__ << "]Compiling: " << p << std::endl;
     std::ostringstream oss;

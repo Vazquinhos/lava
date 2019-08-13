@@ -6,6 +6,11 @@
 #include "resources/MaterialResource.h"
 #include "resources/ShaderResource.h"
 
+#include "render/Mesh.h"
+#include "render/Texture.h"
+#include "render/Shader.h"
+#include "render/Material.h"
+
 #include <Logger.hpp>
 
 namespace lava
